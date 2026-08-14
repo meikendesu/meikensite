@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.js --outDir dist/server",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vue/server-renderer": "^3.5.41",
     "markdown-it": "^15.0.0",
     "opencc-js": "^1.4.1",
     "vue": "^3.4.21",

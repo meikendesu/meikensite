@@ -253,19 +253,37 @@ export const messages = {
 
 const STORAGE_KEY = 'meiken-locale'
 
-function detectLocale() {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved && messages[saved]) return saved
-  const nav = navigator.language || 'zh-CN'
-  if (nav.startsWith('zh')) {
-    return /(TW|HK|MO|Hant)/i.test(nav) ? 'zh-TW' : 'zh-CN'
+// 从语言字符串（浏览器 language 或 Accept-Language 头）推断 locale
+function resolveLocale(lang) {
+  if (!lang) return 'zh-CN'
+  const l = String(lang).toLowerCase()
+  if (l.startsWith('zh')) {
+    return /(tw|hk|mo|hant)/.test(l) ? 'zh-TW' : 'zh-CN'
   }
-  if (nav.startsWith('ja')) return 'ja'
-  if (nav.startsWith('en')) return 'en'
+  if (l.startsWith('ja')) return 'ja'
+  if (l.startsWith('en')) return 'en'
+  return 'zh-CN'
+}
+
+// SSR 安全：客户端优先读 localStorage / navigator，服务端无这些全局对象
+function detectLocale() {
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved && messages[saved]) return saved
+  }
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return resolveLocale(navigator.language)
+  }
   return 'zh-CN'
 }
 
 export const locale = ref(detectLocale())
+
+// SSR 时根据请求的 Accept-Language 头设置初始语言（避免 hydration 不一致）
+export function initLocale(acceptLanguage) {
+  if (!acceptLanguage) return
+  locale.value = resolveLocale(acceptLanguage.split(',')[0])
+}
 
 export function t(key) {
   const dict = messages[locale.value] || messages['zh-CN']
@@ -276,6 +294,10 @@ export function t(key) {
 export function setLocale(l) {
   if (!messages[l]) return
   locale.value = l
-  localStorage.setItem(STORAGE_KEY, l)
-  document.documentElement.lang = l
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, l)
+  }
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = l
+  }
 }
