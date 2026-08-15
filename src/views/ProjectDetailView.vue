@@ -1,15 +1,30 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import PageHeader from '../components/PageHeader.vue'
 import { t } from '../i18n/index.js'
-import { getProjectById } from '../data/projects.js'
+import { ProjectStoreKey } from '../data/projects.js'
 
 const route = useRoute()
-const project = computed(() => getProjectById(route.params.id))
+const projectStore = inject(ProjectStoreKey)
+const loading = ref(!projectStore.getProjectBySlug(route.params.id))
+const loadError = ref('')
+const project = computed(() => projectStore.getProjectBySlug(route.params.id))
 
-const md = new MarkdownIt({ html: true, linkify: true })
+onMounted(async () => {
+  if (project.value) return
+  try {
+    await projectStore.loadProject(route.params.id)
+  } catch (error) {
+    loadError.value = error.message
+  } finally {
+    loading.value = false
+  }
+})
+
+// 管理后台内容按不可信输入处理，禁用原始 HTML，避免存储型 XSS。
+const md = new MarkdownIt({ html: false, linkify: true })
 const rendered = computed(() => (project.value ? md.render(project.value.markdown) : ''))
 </script>
 
@@ -34,6 +49,8 @@ const rendered = computed(() => (project.value ? md.render(project.value.markdow
         >
       </div>
     </template>
+    <p v-else-if="loading" class="form-message">正在加载项目…</p>
+    <p v-else-if="loadError" class="form-message error" role="alert">{{ loadError }}</p>
     <template v-else>
       <section class="page-hero compact">
         <p class="overline">404 / NOT FOUND</p>

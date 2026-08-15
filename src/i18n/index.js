@@ -41,8 +41,6 @@ export const messages = {
     support: {
       title: '请我喝一杯咖啡吧。',
       heroCopy: '每一份小小的支持，都会变成持续做下去的能量。',
-      wechat: '微信支付', wechatDesc: '扫描二维码赞赏',
-      alipay: '支付宝', alipayDesc: '扫描二维码赞赏',
       usdt: 'USDT', usdtDesc: '推荐使用 TRC20 网络',
       showQr: '展示二维码',
       modalHint: '打开对应 App 扫描二维码赞赏',
@@ -103,8 +101,6 @@ export const messages = {
     support: {
       title: '請我喝一杯咖啡吧。',
       heroCopy: '每一份小小的支持，都會變成持續做下去的能量。',
-      wechat: '微信支付', wechatDesc: '掃描二維碼讚賞',
-      alipay: '支付寶', alipayDesc: '掃描二維碼讚賞',
       usdt: 'USDT', usdtDesc: '推薦使用 TRC20 網路',
       showQr: '展示二維碼',
       modalHint: '開啟對應 App 掃描二維碼讚賞',
@@ -165,8 +161,6 @@ export const messages = {
     support: {
       title: 'Buy me a coffee.',
       heroCopy: 'Every bit of support keeps the momentum going.',
-      wechat: 'WeChat Pay', wechatDesc: 'Scan the QR code to tip',
-      alipay: 'Alipay', alipayDesc: 'Scan the QR code to tip',
       usdt: 'USDT', usdtDesc: 'TRC20 network recommended',
       showQr: 'Show QR code',
       modalHint: 'Open the matching app and scan the QR code',
@@ -227,8 +221,6 @@ export const messages = {
     support: {
       title: 'コーヒーをおごってください。',
       heroCopy: '小さな支援が、続ける力になります。',
-      wechat: 'WeChat ペイ', wechatDesc: 'QR コードをスキャンして支援',
-      alipay: 'Alipay', alipayDesc: 'QR コードをスキャンして支援',
       usdt: 'USDT', usdtDesc: 'TRC20 ネットワーク推奨',
       showQr: 'QR コードを表示',
       modalHint: '対応アプリを開いて QR コードをスキャン',

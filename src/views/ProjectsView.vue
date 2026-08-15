@@ -1,13 +1,22 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { t } from '../i18n/index.js'
-import { projects } from '../data/projects.js'
+import { ProjectStoreKey } from '../data/projects.js'
+
+const projectStore = inject(ProjectStoreKey)
+const { projects } = projectStore
+const loadError = ref('')
 
 // 预设柔和色相（蓝/绿/橙/粉/紫/黄/青/红），随机分配
 const HUES = [210, 150, 30, 340, 270, 50, 190, 10]
 const colors = ref({})
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    await projectStore.loadProjects()
+  } catch (error) {
+    loadError.value = error.message
+  }
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   const shuffled = [...HUES].sort(() => Math.random() - 0.5)
   projects.forEach((p, i) => {
@@ -38,7 +47,7 @@ onMounted(() => {
         <div class="work-actions">
           <router-link
             class="work-btn"
-            :to="`/projects/${p.id}`"
+            :to="`/projects/${p.slug}`"
             :aria-label="`${t('common.viewProject')}：${p.name}`"
             ><i class="fa-solid fa-eye"></i> {{ t('common.viewProject') }}</router-link
           ><a
@@ -50,5 +59,6 @@ onMounted(() => {
         </div>
       </article>
     </section>
+    <p v-if="loadError" class="form-message error" role="alert">{{ loadError }}</p>
   </main>
 </template>

@@ -2,10 +2,17 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { t } from '../i18n/index.js'
 
-// TODO: 填写真实 USDT (TRC20) 钱包地址后即可启用复制
-const walletAddress = 'shili'
+// 上线前替换为公开收款地址；不要在仓库中保存钱包私钥或 PayPal 密钥。
+const methods = [
+  { id: 'usdt', name: 'USDT', desc: 'TRC20', value: '待填写 USDT 地址', icon: 'fa-solid fa-dollar-sign', qr: '/payment/usdt-qr.svg' },
+  { id: 'eth', name: 'Ethereum', desc: 'ETH Mainnet', value: '待填写 ETH 地址', icon: 'fa-brands fa-ethereum' },
+  { id: 'btc', name: 'Bitcoin', desc: 'BTC Mainnet', value: '待填写 BTC 地址', icon: 'fa-brands fa-bitcoin' },
+  { id: 'paypal', name: 'PayPal', desc: 'PayPal.Me', value: '待填写 PayPal.Me 链接', icon: 'fa-brands fa-paypal', link: true }
+]
+
 const note = ref('')
 const show = ref(false)
+const activeQr = ref(null)
 let timer = null
 
 function showNote(message) {
@@ -15,32 +22,21 @@ function showNote(message) {
   timer = setTimeout(() => (show.value = false), 3200)
 }
 
-async function copyWallet() {
-  if (walletAddress.includes('待填写')) {
-    showNote(t('support.noteFill'))
+async function useMethod(method) {
+  if (method.value.includes('待填写')) {
+    showNote(`${method.name} 收款信息尚未填写。`)
+    return
+  }
+  if (method.link) {
+    window.open(method.value, '_blank', 'noopener,noreferrer')
     return
   }
   try {
-    await navigator.clipboard.writeText(walletAddress)
-    showNote(t('support.noteCopied'))
+    await navigator.clipboard.writeText(method.value)
+    showNote(`${method.name} 地址已复制。`)
   } catch {
-    showNote(t('support.noteCopyFailed'))
+    showNote('复制失败，请手动复制地址。')
   }
-}
-
-// 二维码弹窗：二维码隐藏，点「展示二维码」弹窗查看
-const QR_MAP = {
-  wechat: { nameKey: 'support.wechat', qr: '/payment/wechat-qr.svg', alt: '微信收款二维码' },
-  alipay: { nameKey: 'support.alipay', qr: '/payment/alipay-qr.svg', alt: '支付宝收款二维码' },
-  usdt: { nameKey: 'support.usdt', qr: '/payment/usdt-qr.svg', alt: 'USDT 收款二维码' }
-}
-const activeQr = ref(null)
-
-function showQr(id) {
-  activeQr.value = QR_MAP[id]
-}
-function closeQr() {
-  activeQr.value = null
 }
 
 onBeforeUnmount(() => clearTimeout(timer))
@@ -54,63 +50,32 @@ onBeforeUnmount(() => clearTimeout(timer))
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>
     </section>
     <section class="payment-list" aria-label="捐助方式">
-      <article class="payment-card wechat">
+      <article v-for="method in methods" :key="method.id" class="payment-card" :class="method.id">
         <div class="payment-heading">
-          <span class="payment-icon"><i class="fa-brands fa-weixin"></i></span>
-          <div>
-            <h2>{{ t('support.wechat') }}</h2>
-            <p>{{ t('support.wechatDesc') }}</p>
-          </div>
+          <span class="payment-icon"><i :class="method.icon"></i></span>
+          <div><h2>{{ method.name }}</h2><p>{{ method.desc }}</p></div>
         </div>
-        <button class="qr-show-btn" type="button" @click="showQr('wechat')">
-          <i class="fa-solid fa-qrcode"></i> {{ t('support.showQr') }}
-        </button>
-      </article>
-      <article class="payment-card alipay">
-        <div class="payment-heading">
-          <span class="payment-icon"><i class="fa-brands fa-alipay"></i></span>
-          <div>
-            <h2>{{ t('support.alipay') }}</h2>
-            <p>{{ t('support.alipayDesc') }}</p>
-          </div>
-        </div>
-        <button class="qr-show-btn" type="button" @click="showQr('alipay')">
-          <i class="fa-solid fa-qrcode"></i> {{ t('support.showQr') }}
-        </button>
-      </article>
-      <article class="payment-card usdt" id="usdt-address">
-        <div class="payment-heading">
-          <span class="payment-icon"><div class="usdt-icon"></div></span>
-          <div>
-            <h2>{{ t('support.usdt') }}</h2>
-            <p>{{ t('support.usdtDesc') }}</p>
-          </div>
-        </div>
-        <button class="qr-show-btn" type="button" @click="showQr('usdt')">
+        <button v-if="method.qr" class="qr-show-btn" type="button" @click="activeQr = method">
           <i class="fa-solid fa-qrcode"></i> {{ t('support.showQr') }}
         </button>
         <div class="wallet-line">
-          <code>{{ walletAddress }}</code>
-          <button type="button" @click="copyWallet">
-            <i class="fa-regular fa-copy"></i> {{ t('common.copy') }}
+          <code>{{ method.value }}</code>
+          <button type="button" @click="useMethod(method)">
+            <i :class="method.link ? 'fa-solid fa-arrow-up-right-from-square' : 'fa-regular fa-copy'"></i>
+            {{ method.link ? '打开' : t('common.copy') }}
           </button>
         </div>
       </article>
     </section>
 
-    <div v-if="activeQr" class="qr-modal" role="dialog" aria-modal="true" @click.self="closeQr">
+    <div v-if="activeQr" class="qr-modal" role="dialog" aria-modal="true" @click.self="activeQr = null">
       <div class="qr-modal-box">
-        <button class="qr-modal-close" type="button" aria-label="关闭" @click="closeQr">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <img class="qr-modal-img" :src="activeQr.qr" :alt="activeQr.alt" />
-        <p class="qr-modal-title">{{ t(activeQr.nameKey) }}</p>
+        <button class="qr-modal-close" type="button" aria-label="关闭" @click="activeQr = null"><i class="fa-solid fa-xmark"></i></button>
+        <img class="qr-modal-img" :src="activeQr.qr" :alt="`${activeQr.name} 收款二维码`" />
+        <p class="qr-modal-title">{{ activeQr.name }}</p>
         <p class="qr-modal-hint">{{ t('support.modalHint') }}</p>
       </div>
     </div>
-
-    <div class="support-note" :class="{ show }" role="status" aria-live="polite">
-      {{ note }}
-    </div>
+    <div class="support-note" :class="{ show }" role="status" aria-live="polite">{{ note }}</div>
   </main>
 </template>

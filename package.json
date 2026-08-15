@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:worker": "npm run build && wrangler dev",
     "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.js --outDir dist/server",
-    "preview": "vite preview"
+    "preview": "vite preview --outDir dist/client",
+    "db:migrate:local": "wrangler d1 migrations apply meikensite-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply meikensite-db --remote",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@vue/server-renderer": "^3.5.41",
@@ -18,6 +22,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
-    "vite": "^6.4.3"
+    "vite": "^6.4.3",
+    "wrangler": "^4.123.0"
   }
 }

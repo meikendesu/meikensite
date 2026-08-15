@@ -1,9 +1,30 @@
 {
-  "name": "meikensite",
-  "main": "worker.js",
-  "compatibility_date": "2025-04-01",
-  "assets": {
-    "directory": "./dist/client",
-    "binding": "ASSETS"
-  }
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "meikensite",
+	"main": "worker.js",
+	"compatibility_date": "2026-08-15",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": "./dist/client",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "meikensite-db",
+			"database_id": "4bdb105d-7137-48a5-a755-41e4883d1da8",
+			"migrations_dir": "migrations"
+		},
+		{
+			"binding": "meikensite_db",
+			"database_name": "meikensite-db",
+			"database_id": "4bdb105d-7137-48a5-a755-41e4883d1da8"
+		}
+	],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	}
 }
