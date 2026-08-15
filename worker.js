@@ -2,7 +2,8 @@
 import { render } from './dist/server/entry-server.js'
 
 const INITIAL_PASSWORD = '123456'
-const PASSWORD_ITERATIONS = 120000
+// Cloudflare Workers Web Crypto currently caps PBKDF2 at 100,000 iterations.
+const PASSWORD_ITERATIONS = 100000
 const SESSION_COOKIE = 'meiken_admin_session'
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 const MAX_JSON_BYTES = 512 * 1024
