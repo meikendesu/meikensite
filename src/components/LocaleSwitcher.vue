@@ -23,11 +23,12 @@ function choose(code: Locale) {
 </script>
 
 <template>
-  <div v-if="open" class="fixed inset-0 z-8 bg-transparent" @click="open = false"></div>
-  <div class="relative inline-flex">
+  <div class="locale-switcher">
+    <div v-if="open" class="lang-backdrop" @click="open = false"></div>
     <button
-      class="inline-flex cursor-pointer items-center gap-[7px] rounded-full border border-separator bg-control px-4 py-2 font-[inherit] text-[13px] text-ink transition-colors duration-150 hover:bg-fill"
+      class="locale-switcher-trigger"
       type="button"
+      aria-label="Language"
       :aria-expanded="open"
       @click="toggle"
     >
@@ -35,7 +36,7 @@ function choose(code: Locale) {
     </button>
     <div
       v-if="open"
-      class="absolute right-0 bottom-[calc(100%+8px)] z-9 flex min-w-32 flex-col gap-0.5 rounded-xl border border-separator bg-[var(--bg-window)] p-1.5 shadow-floating backdrop-blur-3xl"
+      class="locale-switcher-menu"
       role="menu"
     >
       <button
@@ -43,8 +44,7 @@ function choose(code: Locale) {
         :key="o.code"
         type="button"
         role="menuitem"
-        class="cursor-pointer whitespace-nowrap rounded-lg border-0 bg-transparent px-3 py-2 text-left font-[inherit] text-[13px] hover:bg-fill"
-        :class="locale === o.code ? 'font-semibold text-accent' : 'text-ink'"
+        :class="{ active: locale === o.code }"
         @click="choose(o.code)"
       >
         {{ o.label }}

@@ -147,7 +147,7 @@ onMounted(loadEditor)
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell admin-editor-page">
     <header v-if="status === 'ready'" class="admin-header">
-      <div><p class="overline">PROJECT EDITOR</p><h1>{{ isEditing ? '编辑项目' : '新建项目' }}</h1></div>
+      <div><h1>{{ isEditing ? '编辑项目' : '新建项目' }}</h1></div>
       <router-link class="work-btn" to="/admin"><i class="fa-solid fa-arrow-left"></i> 返回管理页</router-link>
     </header>
 

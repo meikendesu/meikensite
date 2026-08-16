@@ -38,7 +38,6 @@ onMounted(async () => {
 <template>
   <main id="main" tabindex="-1" class="shell page-shell">
     <section class="page-hero compact">
-      <p class="overline">CONTACT</p>
       <h1>{{ t('contact.title') }}</h1>
       <p class="hero-copy">{{ t('contact.heroCopy') }}</p>
     </section>

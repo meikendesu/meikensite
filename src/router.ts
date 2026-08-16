@@ -42,10 +42,10 @@ export function createAppRouter(history: RouterHistory) {
     if (typeof document !== 'undefined') {
       if (typeof to.meta?.titleKey === 'string') document.title = t(to.meta.titleKey)
       else if (typeof to.meta?.title === 'string') document.title = to.meta.title
-      window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
         finishRouteLoading?.()
         finishRouteLoading = null
-      }, 160)
+      })
     }
   })
   return router

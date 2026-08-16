@@ -1,25 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { locale, t } from '../i18n'
-import { AboutStoreKey } from '../data/about'
+import { locale } from '../i18n'
+import { AboutStoreKey, DEFAULT_ABOUT_CONTENT } from '../data/about'
 import { beginPageLoading } from '../data/pageLoading'
 
 const store = inject(AboutStoreKey)!
 const loadError = ref('')
-const content = computed(() => store.getAbout(locale.value) || {
-  locale: locale.value,
-  heroTitleLine1: t('about.title1'),
-  heroTitleLine2: t('about.title2'),
-  heroCopy: t('about.heroCopy'),
-  introHeading: t('about.introHeading'),
-  introParagraph1: t('about.p1'),
-  introParagraph2: t('about.p2'),
-  facts: [
-    { label: t('about.fact1Label'), value: t('about.fact1Value') },
-    { label: t('about.fact2Label'), value: t('about.fact2Value') },
-    { label: t('about.fact3Label'), value: t('about.fact3Value') }
-  ]
-})
+const content = computed(() => store.getAbout(locale.value) || store.getAbout('zh-CN') || DEFAULT_ABOUT_CONTENT)
 
 async function loadContent() {
   const finishLoading = beginPageLoading()
@@ -40,7 +27,6 @@ watch(locale, loadContent)
 <template>
   <main id="main" tabindex="-1" class="shell page-shell">
     <section class="page-hero">
-      <p class="overline">ABOUT</p>
       <h1>{{ content.heroTitleLine1 }}<br />{{ content.heroTitleLine2 }}</h1>
       <p class="hero-copy">{{ content.heroCopy }}</p>
     </section>

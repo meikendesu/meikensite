@@ -41,7 +41,7 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
   if (pathname === '/projects') {
     const [result, countRow] = await Promise.all([
       env.DB.prepare(
-      `SELECT id, slug, tag, title AS name, description AS desc, markdown,
+      `SELECT id, slug, tag, title AS name, description AS desc, '' AS markdown,
         is_published AS published, published_at AS publishedAt,
         created_at AS createdAt, updated_at AS updatedAt
        FROM projects WHERE is_published = 1

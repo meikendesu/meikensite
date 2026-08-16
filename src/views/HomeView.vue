@@ -7,7 +7,6 @@ import LocaleSwitcher from '../components/LocaleSwitcher.vue'
   <main id="main" tabindex="-1" class="shell home-shell">
     <section class="home-intro">
       <div class="home-intro-text">
-        <p class="overline">MEIKENDESU</p>
         <h1>{{ t('home.hello') }}<br />{{ t('home.iAm') }} <em>MEIKEN</em></h1>
         <p>{{ t('home.subtitle') }}</p>
       </div>

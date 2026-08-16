@@ -208,7 +208,7 @@ onMounted(async () => {
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell">
     <header v-if="status !== 'hidden' && status !== 'loading'" class="admin-header">
-      <div><p class="overline">ADMIN</p><h1>站点内容管理</h1></div>
+      <div><h1>站点内容管理</h1></div>
       <div class="admin-header-actions">
         <router-link class="work-btn" to="/projects">查看项目页</router-link>
         <button v-if="status === 'ready'" class="work-btn" type="button" @click="logout">退出登录</button>
@@ -243,7 +243,7 @@ onMounted(async () => {
     <template v-else-if="status === 'ready'">
       <section class="admin-panel">
         <div class="admin-section-title">
-          <div><h2>关于页面</h2><p class="admin-help">管理四种语言的标题、自我介绍和个人信息条目。</p></div>
+          <div><h2>关于页面</h2><p class="admin-help">维护简体中文源内容，保存后自动生成繁体中文、英语和日语。</p></div>
           <router-link class="work-btn" to="/admin/about">编辑关于页面</router-link>
         </div>
       </section>

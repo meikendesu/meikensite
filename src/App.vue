@@ -28,7 +28,7 @@ function onScroll() {
 
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
-  window.requestAnimationFrame(() => window.setTimeout(finishInitialPageLoading, 160))
+  window.requestAnimationFrame(finishInitialPageLoading)
 })
 onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 </script>

@@ -84,7 +84,7 @@ onMounted(loadEditor)
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell admin-method-page">
     <header v-if="status === 'ready'" class="admin-header">
-      <div><p class="overline">METHOD EDITOR</p><h1>{{ isEditing ? '编辑方式' : '添加方式' }}</h1></div>
+      <div><h1>{{ isEditing ? '编辑方式' : '添加方式' }}</h1></div>
       <router-link class="work-btn" to="/admin"><i class="fa-solid fa-arrow-left"></i> 返回管理页</router-link>
     </header>
 
@@ -116,7 +116,7 @@ onMounted(loadEditor)
       <p class="admin-help">二维码由服务器直接读取当前公开收款地址生成；请勿填写私钥、助记词或 API 密钥。</p>
 
       <section class="admin-method-preview">
-        <div class="admin-section-title"><div><p class="overline">LIVE PREVIEW</p><h2>页面预览</h2></div></div>
+        <div class="admin-section-title"><div><h2>页面预览</h2></div></div>
         <article v-if="editor.category === 'contact'" class="contact-row method-preview-card">
           <span class="row-icon"><i :class="editor.icon"></i></span>
           <div><small>{{ editor.description || '联系方式说明' }}</small><strong>{{ editor.name || '显示名称' }}</strong></div>

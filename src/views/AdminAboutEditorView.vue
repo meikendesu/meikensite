@@ -1,31 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import CustomSelect from '../components/CustomSelect.vue'
 import { adminApi, requireAdminSession } from '../data/adminApi'
 import { beginPageLoading } from '../data/pageLoading'
-import type { AboutContent, Locale } from '../types'
+import type { AboutContent } from '../types'
 
 const router = useRouter()
 const status = ref<'loading' | 'ready' | 'error'>('loading')
 const error = ref('')
-const selectedLocale = ref<Locale>('zh-CN')
-const contents = ref<AboutContent[]>([])
-const localeOptions = [
-  { value: 'zh-CN', label: '简体中文' },
-  { value: 'zh-TW', label: '繁體中文' },
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' }
-]
-const editor = computed(() => contents.value.find((item) => item.locale === selectedLocale.value))
+const translating = ref(false)
+const editor = ref<AboutContent | null>(null)
 
 async function loadEditor() {
   const finishPageLoading = beginPageLoading()
   try {
     if (!(await requireAdminSession(router))) return
-    const data = await adminApi<{ contents: AboutContent[] }>('/api/admin/about')
-    contents.value = data.contents || []
-    if (!editor.value) throw new Error('关于页面内容尚未初始化，请先执行数据库迁移。')
+    const data = await adminApi<{ content: AboutContent | null }>('/api/admin/about')
+    if (!data.content) throw new Error('简体中文关于页面尚未初始化，请先执行数据库迁移。')
+    editor.value = data.content
     status.value = 'ready'
   } catch (requestError) {
     error.value = requestError instanceof Error ? requestError.message : '关于页面内容加载失败。'
@@ -46,16 +38,19 @@ function removeFact(index: number) {
 }
 
 async function saveContent() {
-  if (!editor.value) return
+  if (!editor.value || translating.value) return
   error.value = ''
+  translating.value = true
   try {
     await adminApi('/api/admin/about', {
       method: 'POST',
-      body: JSON.stringify(editor.value)
+      body: JSON.stringify({ ...editor.value, locale: 'zh-CN' })
     })
     await router.push({ path: '/admin', query: { saved: 'about' } })
   } catch (requestError) {
-    error.value = requestError instanceof Error ? requestError.message : '关于页面内容保存失败。'
+    error.value = requestError instanceof Error ? requestError.message : '关于页面保存或自动翻译失败。'
+  } finally {
+    translating.value = false
   }
 }
 
@@ -65,7 +60,7 @@ onMounted(loadEditor)
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell admin-editor-page">
     <header v-if="status === 'ready'" class="admin-header">
-      <div><p class="overline">ABOUT EDITOR</p><h1>编辑关于页面</h1></div>
+      <div><h1>编辑关于页面</h1></div>
       <router-link class="work-btn" to="/admin"><i class="fa-solid fa-arrow-left"></i> 返回管理页</router-link>
     </header>
 
@@ -76,9 +71,9 @@ onMounted(loadEditor)
     </section>
 
     <form v-else-if="editor" class="admin-panel admin-editor" @submit.prevent="saveContent">
-      <label class="admin-about-locale">编辑语言
-        <CustomSelect v-model="selectedLocale" :options="localeOptions" aria-label="选择关于页面语言" />
-      </label>
+      <p class="admin-help admin-translation-help">
+        后台只维护简体中文。保存时会使用 Cloudflare Workers AI 的免费多语言模型，自动生成繁体中文、英语和日语内容；翻译失败时不会覆盖现有内容。
+      </p>
 
       <div class="admin-fields-grid">
         <label>主标题第一行<input v-model="editor.heroTitleLine1" maxlength="120" required /></label>
@@ -103,7 +98,9 @@ onMounted(loadEditor)
 
       <div class="admin-form-actions">
         <router-link class="work-btn" to="/admin">取消</router-link>
-        <button class="admin-primary" type="submit">保存关于页面</button>
+        <button class="admin-primary" type="submit" :disabled="translating">
+          {{ translating ? '正在保存并自动翻译…' : '保存并自动翻译' }}
+        </button>
       </div>
       <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
     </form>

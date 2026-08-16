@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: "Google Sans Flex", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
@@ -14,6 +14,29 @@
   --shadow-floating: var(--shadow-2);
 }
 
+/* 覆盖 Font Awesome 默认的 block，避免图标字体阻塞首次文本绘制。 */
+@font-face {
+  font-family: "Font Awesome 7 Free";
+  src: url("@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Font Awesome 7 Free";
+  src: url("@fortawesome/fontawesome-free/webfonts/fa-regular-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Font Awesome 7 Brands";
+  src: url("@fortawesome/fontawesome-free/webfonts/fa-brands-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ============================================================
    MEIKEN · macOS 风格外观（基于 Apple Human Interface Guidelines）
    - 语义色层级（label / secondaryLabel / separator / fill）
@@ -23,24 +46,6 @@
    - 深色 / 浅色外观自适应
    仅改外观，不改页面内容。
    ============================================================ */
-
-/* 英文字体：Google Sans Flex（可变字体，本地自托管） */
-@font-face {
-  font-family: "Google Sans Flex";
-  src: url("/fonts/GoogleSansFlex.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* 中文字体：Noto Sans SC（可变字体，本地自托管） */
-@font-face {
-  font-family: "Noto Sans SC";
-  src: url("/fonts/NotoSansSC.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
 
 :root {
   /* macOS 语义色（浅色外观） */
@@ -86,9 +91,7 @@
   --page: var(--bg-window);
   --blue: var(--accent);
 
-  font-family:
-    "Google Sans Flex", "Noto Sans SC", -apple-system,
-    BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -218,7 +221,7 @@ button {
   @apply grid size-[34px] place-items-center rounded-full text-sm font-bold text-white;
   background: linear-gradient(145deg, #5e9dff, #007aff);
   font:
-    700 14px "Noto Sans",
+    700 14px -apple-system,
     sans-serif;
   box-shadow: 0 3px 8px rgba(0, 122, 255, 0.35);
 }
@@ -232,10 +235,6 @@ button {
 
 .page-title {
   @apply text-[15px] font-semibold;
-}
-
-.overline {
-  @apply m-0 text-[11px] font-semibold tracking-[0.08em] text-muted uppercase;
 }
 
 /* ---------- 首页引导 ---------- */
@@ -266,7 +265,7 @@ button {
   background: linear-gradient(145deg, #5e9dff, #007aff);
   color: #fff;
   font:
-    700 42px "Google Sans Flex",
+    700 42px -apple-system,
     sans-serif;
   box-shadow: 0 12px 30px rgba(0, 122, 255, 0.35);
 }
@@ -370,7 +369,7 @@ button {
   background: linear-gradient(135deg, #5e9dff, #007aff);
   color: #fff;
   font:
-    700 28px "Noto Sans",
+    700 28px -apple-system,
     sans-serif;
 }
 .profile-card h2 {
@@ -696,7 +695,10 @@ button {
   color: var(--accent);
   font-weight: 700;
 }
-.lang-btn {
+.locale-switcher {
+  @apply relative inline-flex min-w-0;
+}
+.locale-switcher-trigger {
   min-width: 0;
   display: grid;
   justify-items: center;
@@ -709,15 +711,15 @@ button {
   font-family: inherit;
   cursor: pointer;
 }
-.lang-btn i {
+.locale-switcher-trigger i {
   height: 19px;
   font-size: 18px;
   font-style: normal;
   line-height: 19px;
 }
-.lang-menu {
+.locale-switcher-menu {
   position: absolute;
-  right: 12px;
+  right: 0;
   bottom: calc(100% + 10px);
   z-index: 6;
   display: flex;
@@ -732,7 +734,7 @@ button {
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
 }
-.lang-menu button {
+.locale-switcher-menu button {
   padding: 8px 12px;
   border: 0;
   border-radius: 8px;
@@ -743,10 +745,10 @@ button {
   cursor: pointer;
   white-space: nowrap;
 }
-.lang-menu button:hover {
+.locale-switcher-menu button:hover {
   background: var(--fill);
 }
-.lang-menu button.active {
+.locale-switcher-menu button.active {
   color: var(--accent);
   font-weight: 600;
 }
@@ -872,7 +874,7 @@ button {
     font-size: 15px;
     line-height: 1;
   }
-  .lang-btn {
+  .locale-switcher-trigger {
     display: flex;
     align-items: center;
     gap: 7px;
@@ -881,10 +883,10 @@ button {
     font-size: 13px;
     transition: background 0.15s;
   }
-  .lang-btn:hover {
+  .locale-switcher-trigger:hover {
     background: var(--fill);
   }
-  .lang-menu {
+  .tabbar .locale-switcher-menu {
     top: calc(100% + 8px);
     bottom: auto;
     right: 16px;
@@ -1144,8 +1146,8 @@ button {
 .admin-hidden-error {
   @apply mx-auto my-[60px];
 }
-.admin-about-locale {
-  @apply max-w-[320px];
+.admin-translation-help {
+  @apply mb-6 rounded-xl border border-separator bg-[var(--fill)] p-4 leading-relaxed;
 }
 .admin-about-facts {
   @apply mt-6 border-t border-separator pt-6;
@@ -1169,7 +1171,7 @@ button {
   @apply mb-6;
 }
 .admin-header h1 {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: clamp(32px, 5vw, 52px);
 }
 .admin-header-actions {
@@ -1260,6 +1262,9 @@ button {
 }
 .admin-primary {
   @apply min-h-10 cursor-pointer rounded-[10px] border-0 bg-accent px-[18px] py-2.5 font-semibold text-white;
+}
+.admin-primary:disabled {
+  @apply cursor-wait opacity-60;
 }
 .admin-fields-grid,
 .markdown-editor-grid {

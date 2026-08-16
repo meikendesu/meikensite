@@ -6,6 +6,11 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig(({ isSsrBuild }) => ({
   plugins: [vue(), tailwindcss()],
   base: '/',
+  define: {
+    __VUE_OPTIONS_API__: false,
+    __VUE_PROD_DEVTOOLS__: false,
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false
+  },
   build: {
     // 每次构建清理各自输出目录，避免旧哈希资源持续进入部署包。
     emptyOutDir: true,

@@ -8,14 +8,15 @@ import { ProjectStoreKey } from '../data/projects'
 import { beginPageLoading } from '../data/pageLoading'
 
 const route = useRoute()
-const projectStore = inject(ProjectStoreKey)
+const projectStore = inject(ProjectStoreKey)!
 const slug = computed(() => String(Array.isArray(route.params.id) ? route.params.id[0] : route.params.id || ''))
-const loading = ref(!projectStore.getProjectBySlug(slug.value))
 const loadError = ref('')
 const project = computed(() => projectStore.getProjectBySlug(slug.value))
+const hasContent = computed(() => Boolean(project.value?.markdown.trim()))
+const loading = ref(!hasContent.value)
 
 onMounted(async () => {
-  if (project.value) return
+  if (hasContent.value) return
   const finishPageLoading = beginPageLoading()
   try {
     await projectStore.loadProject(slug.value)
@@ -41,9 +42,8 @@ const rendered = computed(() => (project.value ? md.render(project.value.markdow
       avatar-to="/contact"
       :avatar-label="t('nav.contact')"
     />
-    <template v-if="project">
+    <template v-if="project && hasContent">
       <section class="page-hero compact">
-        <p class="overline">{{ project.tag }}</p>
         <h1>{{ project.name }}</h1>
         <p class="hero-copy">{{ t('projects.publishedAt') }} {{ project.publishedAt }} · {{ t('projects.updatedAt') }} {{ project.updatedAt }}</p>
       </section>
@@ -61,7 +61,6 @@ const rendered = computed(() => (project.value ? md.render(project.value.markdow
     <p v-else-if="loadError" class="form-message error" role="alert">{{ loadError }}</p>
     <template v-else>
       <section class="page-hero compact">
-        <p class="overline">404 / NOT FOUND</p>
         <h1>{{ t('detail.notFound') }}</h1>
         <p class="hero-copy">{{ t('detail.notFoundDesc') }}</p>
       </section>

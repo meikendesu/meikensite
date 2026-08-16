@@ -36,6 +36,8 @@ const env: Env = {
       return new Response('asset not found', { status: 404 })
     }
   } as Fetcher,
+  // 后台翻译端点在未授权回归中不会调用 AI；保留绑定占位以匹配生产 Env。
+  AI: {} as Ai,
   // 最小 D1 替身：Admin 会话为空；畸形项目 URL 会在真正查询前触发解码错误。
   DB: mockDb
 }

@@ -54,7 +54,6 @@ onBeforeUnmount(() => {
 <template>
   <main id="main" tabindex="-1" class="shell page-shell">
     <section class="page-hero">
-      <p class="overline">DONATE</p>
       <h1>{{ t('support.title') }}</h1>
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>
     </section>
