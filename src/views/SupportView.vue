@@ -1,15 +1,10 @@
 <script setup>
-import { ref, onBeforeUnmount } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { t } from '../i18n/index.js'
+import { SiteMethodStoreKey } from '../data/siteMethods.js'
 
-// 上线前替换为公开收款地址；不要在仓库中保存钱包私钥或 PayPal 密钥。
-const methods = [
-  { id: 'usdt', name: 'USDT', desc: 'TRC20', value: '待填写 USDT 地址', icon: 'fa-solid fa-dollar-sign', qr: '/payment/usdt-qr.svg' },
-  { id: 'eth', name: 'Ethereum', desc: 'ETH Mainnet', value: '待填写 ETH 地址', icon: 'fa-brands fa-ethereum' },
-  { id: 'btc', name: 'Bitcoin', desc: 'BTC Mainnet', value: '待填写 BTC 地址', icon: 'fa-brands fa-bitcoin' },
-  { id: 'paypal', name: 'PayPal', desc: 'PayPal.Me', value: '待填写 PayPal.Me 链接', icon: 'fa-brands fa-paypal', link: true }
-]
-
+const store = inject(SiteMethodStoreKey)
+const methods = computed(() => store.methods.value.filter((method) => method.category === 'donation'))
 const note = ref('')
 const show = ref(false)
 const activeQr = ref(null)
@@ -27,7 +22,7 @@ async function useMethod(method) {
     showNote(`${method.name} 收款信息尚未填写。`)
     return
   }
-  if (method.link) {
+  if (method.actionType === 'link') {
     window.open(method.value, '_blank', 'noopener,noreferrer')
     return
   }
@@ -39,6 +34,7 @@ async function useMethod(method) {
   }
 }
 
+onMounted(() => store.loadMethods('donation').catch((requestError) => showNote(requestError.message)))
 onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
@@ -50,19 +46,19 @@ onBeforeUnmount(() => clearTimeout(timer))
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>
     </section>
     <section class="payment-list" aria-label="捐助方式">
-      <article v-for="method in methods" :key="method.id" class="payment-card" :class="method.id">
+      <article v-for="method in methods" :key="method.id" class="payment-card" :class="method.methodKey">
         <div class="payment-heading">
           <span class="payment-icon"><i :class="method.icon"></i></span>
-          <div><h2>{{ method.name }}</h2><p>{{ method.desc }}</p></div>
+          <div><h2>{{ method.name }}</h2><p>{{ method.description }}</p></div>
         </div>
-        <button v-if="method.qr" class="qr-show-btn" type="button" @click="activeQr = method">
+        <button v-if="method.qrEnabled" class="qr-show-btn" type="button" @click="activeQr = method">
           <i class="fa-solid fa-qrcode"></i> {{ t('support.showQr') }}
         </button>
         <div class="wallet-line">
           <code>{{ method.value }}</code>
           <button type="button" @click="useMethod(method)">
-            <i :class="method.link ? 'fa-solid fa-arrow-up-right-from-square' : 'fa-regular fa-copy'"></i>
-            {{ method.link ? '打开' : t('common.copy') }}
+            <i :class="method.actionType === 'link' ? 'fa-solid fa-arrow-up-right-from-square' : 'fa-regular fa-copy'"></i>
+            {{ method.actionType === 'link' ? '打开' : t('common.copy') }}
           </button>
         </div>
       </article>
@@ -71,7 +67,7 @@ onBeforeUnmount(() => clearTimeout(timer))
     <div v-if="activeQr" class="qr-modal" role="dialog" aria-modal="true" @click.self="activeQr = null">
       <div class="qr-modal-box">
         <button class="qr-modal-close" type="button" aria-label="关闭" @click="activeQr = null"><i class="fa-solid fa-xmark"></i></button>
-        <img class="qr-modal-img" :src="activeQr.qr" :alt="`${activeQr.name} 收款二维码`" />
+        <img class="qr-modal-img" :src="`/api/site-methods/${activeQr.id}/qr`" :alt="`${activeQr.name} 收款二维码`" />
         <p class="qr-modal-title">{{ activeQr.name }}</p>
         <p class="qr-modal-hint">{{ t('support.modalHint') }}</p>
       </div>

@@ -48,7 +48,7 @@ INSERT OR IGNORE INTO projects (
 
 ## 项目演示
 
-[查看项目演示视频](/shared-assets/videos/flower.mp4)
+> 演示视频暂未提供。
 ',
   1
 );

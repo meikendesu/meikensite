@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Ethereum 收款二维码占位图</title>
+  <desc id="desc">请填写真实 Ethereum 地址后替换此图片</desc>
+  <rect width="512" height="512" rx="28" fill="#fff"/>
+  <g fill="#343434">
+    <path d="M48 48h128v128H48zm24 24v80h80V72zm24 24h32v32H96zM336 48h128v128H336zm24 24v80h80V72zm24 24h32v32h-32zM48 336h128v128H48zm24 24v80h80v-80zm24 24h32v32H96z"/>
+    <path d="M208 48h24v24h-24zm48 0h48v24h-48zm-48 48h72v24h-72zm96 0h24v48h-24zm-96 48h24v48h-24zm48 0h48v24h-48zm-48 72h48v24h-48zm72 0h48v48h-48zm72 0h24v24h-24zm48 0h64v24h-64zm-192 72h24v48h-24zm48 0h72v24h-72zm96 0h48v24h-48zm72 0h40v48h-24v-24h-16zm-192 72h48v24h-48zm72 0h24v72h-24zm48 0h72v24h-72zm96 0h56v24h-56zm-192 48h24v56h-24zm96 0h24v56h-24zm48 0h48v24h-48zm72 0h24v56h-24z"/>
+  </g>
+  <rect x="174" y="174" width="164" height="164" rx="32" fill="#f3f0ff" stroke="#627eea" stroke-width="8"/>
+  <path d="M256 194l-42 70 42 25 42-25zm0 104l-42-25 42 56 42-56z" fill="#627eea"/>
+  <rect x="136" y="458" width="240" height="34" rx="17" fill="#627eea"/>
+  <text x="256" y="481" fill="#fff" font-family="Arial,sans-serif" font-size="18" font-weight="700" text-anchor="middle">ETH · 请替换真实二维码</text>
+</svg>

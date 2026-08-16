@@ -17,14 +17,14 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章和管理员认证数据�
 meikensite/
 ├── worker.js               # Worker SSR 与 API 入口
 ├── wrangler.jsonc          # Assets、D1 和日志配置
-├── migrations/             # D1 数据库迁移
+├── migrations/             # D1 数据库迁移（项目、联系方式、捐助方式）
 ├── src/
 │   ├── entry-client.js     # 浏览器 hydration 入口
 │   ├── entry-server.js     # SSR 入口
 │   ├── router.js           # 页面路由与按需拆包
 │   ├── data/projects.js    # 项目数据 store / API 客户端
-│   └── views/AdminView.vue # 登录、改密、Markdown 项目管理
-└── public/                 # 字体、USDT 二维码等静态资源
+│   └── views/AdminView.vue # 登录、改密、项目与站点方式管理
+└── public/                 # 字体等静态资源
 ```
 
 ## 常用命令
@@ -66,6 +66,8 @@ npm run dev:worker
 2. 首次登录会被强制要求设置至少 8 个字符的新密码。
 3. 新建或编辑项目，可直接撰写 Markdown，也可导入不超过 400 KB 的 `.md` 文件。
 4. 勾选“公开发布”后保存，文章会出现在 `/projects`。
+5. 在“联系方式与捐助方式”中可以新增、编辑、隐藏或删除公开方式。
+6. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
 
@@ -96,7 +98,7 @@ npm run db:migrate:remote
 npm run deploy
 ```
 
-`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表，并迁移原有 Wawawa 项目文章。生产站首次访问 `/admin` 时仍使用 `123456`，登录后必须立刻修改。
+`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表，并写入当前页面使用的初始数据。生产站首次访问 `/admin` 时仍使用 `123456`，登录后必须立刻修改。
 
 备份生产文章：
 
@@ -104,8 +106,9 @@ npm run deploy
 npx wrangler d1 export meikensite-db --remote --output backup.sql
 ```
 
-## 捐助信息待填写
+## 联系方式与捐助信息
 
-- 在 `src/views/SupportView.vue` 的 `methods` 中填写 USDT、ETH、BTC 公开收款地址和 PayPal.Me 链接。
-- USDT 二维码位于 `public/payment/usdt-qr.svg`；微信和支付宝方式及二维码已删除。
-- 仓库只允许保存公开收款地址，不要写入钱包私钥、助记词、PayPal 密钥或真实后台密码。
+- 联系方式和捐助方式均存储在 D1 的 `site_methods` 表，通过 `/admin` 管理，不再修改 Vue 页面中的硬编码数组。
+- USDT、ETH、BTC 初始值仍是醒目的“待填写”占位内容，且默认不开启二维码；填写真实公开地址后再启用二维码。
+- 二维码由 `/api/site-methods/:id/qr` 按数据库中的当前地址动态生成，修改地址后不需要替换或提交静态二维码文件。
+- 数据库只允许保存公开收款地址，不要写入钱包私钥、助记词、PayPal 密钥或真实后台密码。

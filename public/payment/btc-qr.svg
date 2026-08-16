@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Bitcoin 收款二维码占位图</title>
+  <desc id="desc">请填写真实 Bitcoin 地址后替换此图片</desc>
+  <rect width="512" height="512" rx="28" fill="#fff"/>
+  <g fill="#2d2d2d">
+    <path d="M48 48h128v128H48zm24 24v80h80V72zm24 24h32v32H96zM336 48h128v128H336zm24 24v80h80V72zm24 24h32v32h-32zM48 336h128v128H48zm24 24v80h80v-80zm24 24h32v32H96z"/>
+    <path d="M208 48h48v24h-48zm72 0h48v48h-24V72h-24zm-72 72h24v72h-24zm48 0h48v24h-48zm72 48h48v24h-48zm72 48h64v24h-64zm-192 0h48v48h-48zm72 24h48v24h-48zm72 24h48v48h-48zm72 24h40v24h-40zm-216 24h24v48h-24zm48 0h72v24h-72zm96 24h48v24h-48zm72 0h40v48h-24v-24h-16zm-216 72h48v24h-48zm72-24h24v72h-24zm48 24h72v24h-72zm96-24h56v24h-56zm-192 72h24v32h-24zm96-24h24v56h-24zm48 0h48v24h-48zm72 24h24v32h-24z"/>
+  </g>
+  <circle cx="256" cy="256" r="82" fill="#f7931a"/>
+  <path d="M287 214c-4-27-27-33-56-37l-6-25-15 4 6 24-12 3-6-24-15 4 6 25-19 5 4 17 11-3c6-2 9 2 10 6l17 68c1 4 0 8-6 10l-11 3 2 20 19-5 6 25 15-4-6-24 12-3 6 24 15-4-6-26c35-9 55-24 50-55-3-19-14-28-29-31 8-8 12-19 8-32zm-18 62c5 20-30 27-50 32l-8-31c20-5 53-21 58-1zm-11-50c4 18-25 24-42 28l-7-29c17-4 44-17 49 1z" fill="#fff"/>
+  <rect x="136" y="458" width="240" height="34" rx="17" fill="#f7931a"/>
+  <text x="256" y="481" fill="#fff" font-family="Arial,sans-serif" font-size="18" font-weight="700" text-anchor="middle">BTC · 请替换真实二维码</text>
+</svg>

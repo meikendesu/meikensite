@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:worker": "npm run build && wrangler dev",
     "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.js --outDir dist/server",
+    "verify:worker": "npm run build && node scripts/verify-worker.mjs",
     "preview": "vite preview --outDir dist/client",
     "db:migrate:local": "wrangler d1 migrations apply meikensite-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply meikensite-db --remote",
@@ -16,6 +17,7 @@
     "@vue/server-renderer": "^3.5.41",
     "markdown-it": "^15.0.0",
     "opencc-js": "^1.4.1",
+    "qrcode": "^1.5.4",
     "vue": "^3.4.21",
     "vue-i18n": "^11.4.8",
     "vue-router": "^4.3.0"

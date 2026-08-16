@@ -5,7 +5,7 @@ export const messages = {
   'zh-CN': {
     nav: { home: '首页', about: '关于', projects: '项目', contact: '联系', support: '捐助' },
     a11y: { skip: '跳到主要内容' },
-    common: { backHome: '首页', backProjects: '项目', viewProject: '查看项目', downloadApp: '下载应用', copy: '复制' },
+    common: { backHome: '首页', backProjects: '项目', viewProject: '查看项目', downloadApp: '下载应用', downloadUnavailable: '暂未提供下载', copy: '复制' },
     home: {
       hello: '你好，',
       iAm: '我是',
@@ -65,7 +65,7 @@ export const messages = {
   'zh-TW': {
     nav: { home: '首頁', about: '關於', projects: '項目', contact: '聯繫', support: '捐助' },
     a11y: { skip: '跳到主要內容' },
-    common: { backHome: '首頁', backProjects: '項目', viewProject: '查看項目', downloadApp: '下載應用', copy: '複製' },
+    common: { backHome: '首頁', backProjects: '項目', viewProject: '查看項目', downloadApp: '下載應用', downloadUnavailable: '暫未提供下載', copy: '複製' },
     home: {
       hello: '你好，',
       iAm: '我是',
@@ -125,7 +125,7 @@ export const messages = {
   en: {
     nav: { home: 'Home', about: 'About', projects: 'Projects', contact: 'Contact', support: 'Support' },
     a11y: { skip: 'Skip to content' },
-    common: { backHome: 'Home', backProjects: 'Projects', viewProject: 'View project', downloadApp: 'Download app', copy: 'Copy' },
+    common: { backHome: 'Home', backProjects: 'Projects', viewProject: 'View project', downloadApp: 'Download app', downloadUnavailable: 'Download unavailable', copy: 'Copy' },
     home: {
       hello: 'Hello, ',
       iAm: "I'm",
@@ -185,7 +185,7 @@ export const messages = {
   ja: {
     nav: { home: 'ホーム', about: '自己紹介', projects: 'プロジェクト', contact: '連絡', support: '支援' },
     a11y: { skip: '本文へスキップ' },
-    common: { backHome: 'ホーム', backProjects: 'プロジェクト', viewProject: 'プロジェクトを見る', downloadApp: 'アプリをダウンロード', copy: 'コピー' },
+    common: { backHome: 'ホーム', backProjects: 'プロジェクト', viewProject: 'プロジェクトを見る', downloadApp: 'アプリをダウンロード', downloadUnavailable: 'ダウンロードはまだありません', copy: 'コピー' },
     home: {
       hello: 'こんにちは、',
       iAm: '私は',

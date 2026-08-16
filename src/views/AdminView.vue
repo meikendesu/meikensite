@@ -7,14 +7,32 @@ const mustChangePassword = ref(false)
 const message = ref('')
 const error = ref('')
 const projects = ref([])
+const siteMethods = ref([])
 const loginPassword = ref('')
 const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const editor = reactive(emptyProject())
+const methodEditor = reactive(emptySiteMethod())
 const md = new MarkdownIt({ html: false, linkify: true })
 const preview = computed(() => md.render(editor.markdown || ''))
 
 function emptyProject() {
   return { id: null, slug: '', tag: '', title: '', description: '', markdown: '', published: false }
+}
+
+function emptySiteMethod() {
+  return {
+    id: null,
+    category: 'contact',
+    methodKey: '',
+    name: '',
+    description: '',
+    value: '',
+    icon: 'fa-solid fa-link',
+    actionType: 'link',
+    qrEnabled: false,
+    enabled: true,
+    sortOrder: 0
+  }
 }
 
 async function api(url, options = {}) {
@@ -36,7 +54,7 @@ async function checkSession() {
     const data = await api('/api/admin/session')
     mustChangePassword.value = data.mustChangePassword
     status.value = data.mustChangePassword ? 'change-password' : 'ready'
-    if (!data.mustChangePassword) await loadProjects()
+    if (!data.mustChangePassword) await loadAdminData()
   } catch (requestError) {
     status.value = requestError.status === 401 ? 'login' : 'error'
     error.value = requestError.status === 401 ? '' : requestError.message
@@ -53,7 +71,7 @@ async function login() {
     loginPassword.value = ''
     mustChangePassword.value = data.mustChangePassword
     status.value = data.mustChangePassword ? 'change-password' : 'ready'
-    if (!data.mustChangePassword) await loadProjects()
+    if (!data.mustChangePassword) await loadAdminData()
   } catch (requestError) {
     error.value = requestError.message
   }
@@ -79,7 +97,7 @@ async function changePassword() {
     mustChangePassword.value = false
     status.value = 'ready'
     message.value = '密码已更新。'
-    await loadProjects()
+    await loadAdminData()
   } catch (requestError) {
     error.value = requestError.message
   }
@@ -88,6 +106,51 @@ async function changePassword() {
 async function loadProjects() {
   const data = await api('/api/admin/projects')
   projects.value = data.projects || []
+}
+
+async function loadSiteMethods() {
+  const data = await api('/api/admin/site-methods')
+  siteMethods.value = data.methods || []
+}
+
+async function loadAdminData() {
+  await Promise.all([loadProjects(), loadSiteMethods()])
+}
+
+function editSiteMethod(method) {
+  Object.assign(methodEditor, method)
+  clearMessages()
+  document.querySelector('.admin-method-editor')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+function resetMethodEditor(clear = true) {
+  Object.assign(methodEditor, emptySiteMethod())
+  if (clear) clearMessages()
+}
+
+async function saveSiteMethod() {
+  clearMessages()
+  try {
+    await api('/api/admin/site-methods', { method: 'POST', body: JSON.stringify(methodEditor) })
+    message.value = methodEditor.id ? '方式已更新。' : '方式已添加。'
+    await loadSiteMethods()
+    if (!methodEditor.id) resetMethodEditor(false)
+  } catch (requestError) {
+    error.value = requestError.message
+  }
+}
+
+async function deleteSiteMethod(method) {
+  if (!window.confirm(`确定删除“${method.name}”吗？此操作不可撤销。`)) return
+  clearMessages()
+  try {
+    await api(`/api/admin/site-methods/${method.id}`, { method: 'DELETE' })
+    if (methodEditor.id === method.id) resetMethodEditor()
+    await loadSiteMethods()
+    message.value = '方式已删除。'
+  } catch (requestError) {
+    error.value = requestError.message
+  }
 }
 
 function editProject(project) {
@@ -114,7 +177,7 @@ async function saveProject() {
   try {
     await api('/api/admin/projects', { method: 'POST', body: JSON.stringify(editor) })
     message.value = editor.published ? '项目已保存并发布。' : '草稿已保存。'
-    await loadProjects()
+    await loadAdminData()
     if (!editor.id) resetEditor(false)
   } catch (requestError) {
     error.value = requestError.message
@@ -127,7 +190,7 @@ async function deleteProject(project) {
   try {
     await api(`/api/admin/projects/${project.id}`, { method: 'DELETE' })
     if (editor.id === project.id) resetEditor()
-    await loadProjects()
+    await loadAdminData()
     message.value = '项目已删除。'
   } catch (requestError) {
     error.value = requestError.message
@@ -155,7 +218,9 @@ async function logout() {
   await api('/api/admin/logout', { method: 'POST', body: '{}' })
   status.value = 'login'
   projects.value = []
+  siteMethods.value = []
   resetEditor()
+  resetMethodEditor()
 }
 
 function clearMessages() {
@@ -171,7 +236,7 @@ onMounted(checkSession)
     <header class="admin-header">
       <div>
         <p class="overline">ADMIN</p>
-        <h1>项目内容管理</h1>
+        <h1>站点内容管理</h1>
       </div>
       <div class="admin-header-actions">
         <router-link class="work-btn" to="/projects">查看项目页</router-link>
@@ -231,6 +296,59 @@ onMounted(checkSession)
           <article class="markdown-body markdown-preview" v-html="preview"></article>
         </div>
         <button class="admin-primary" type="submit">{{ editor.published ? '保存并发布' : '保存草稿' }}</button>
+      </form>
+
+      <section class="admin-panel">
+        <div class="admin-section-title">
+          <h2>联系方式与捐助方式</h2>
+          <button class="work-btn" type="button" @click="resetMethodEditor">添加方式</button>
+        </div>
+        <div v-if="siteMethods.length" class="admin-project-list">
+          <article v-for="method in siteMethods" :key="method.id">
+            <div>
+              <strong>{{ method.name }}</strong>
+              <small>{{ method.category === 'contact' ? '联系方式' : '捐助方式' }} · {{ method.methodKey }} · {{ method.enabled ? '已显示' : '已隐藏' }}</small>
+            </div>
+            <div><button type="button" @click="editSiteMethod(method)">编辑</button><button class="danger" type="button" @click="deleteSiteMethod(method)">删除</button></div>
+          </article>
+        </div>
+        <p v-else class="form-message">暂无联系方式或捐助方式。</p>
+      </section>
+
+      <form class="admin-panel admin-method-editor" @submit.prevent="saveSiteMethod">
+        <h2>{{ methodEditor.id ? '编辑方式' : '添加方式' }}</h2>
+        <div class="admin-fields-grid">
+          <label>分类
+            <select v-model="methodEditor.category" @change="methodEditor.qrEnabled = false">
+              <option value="contact">联系方式</option>
+              <option value="donation">捐助方式</option>
+            </select>
+          </label>
+          <label>唯一标识<input v-model="methodEditor.methodKey" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="例如 wechat" maxlength="80" required /></label>
+          <label>显示名称<input v-model="methodEditor.name" maxlength="80" required /></label>
+          <label>说明<input v-model="methodEditor.description" maxlength="120" placeholder="例如 BTC Mainnet" /></label>
+          <label>操作类型
+            <select v-model="methodEditor.actionType" @change="methodEditor.qrEnabled = false">
+              <option value="link">打开链接</option>
+              <option value="email">发送邮件</option>
+              <option value="copy">复制内容</option>
+              <option value="crypto">加密货币地址</option>
+            </select>
+          </label>
+          <label>Font Awesome 图标<input v-model="methodEditor.icon" maxlength="100" placeholder="fa-solid fa-link" required /></label>
+          <label>排序<input v-model.number="methodEditor.sortOrder" type="number" min="0" max="9999" required /></label>
+          <label class="admin-published"><input v-model="methodEditor.enabled" type="checkbox" /> 在公开页面显示</label>
+          <label class="admin-published">
+            <input
+              v-model="methodEditor.qrEnabled"
+              type="checkbox"
+              :disabled="methodEditor.category !== 'donation' || methodEditor.actionType !== 'crypto'"
+            /> 自动生成二维码
+          </label>
+        </div>
+        <label>链接、邮箱或公开收款地址<textarea v-model="methodEditor.value" maxlength="500" rows="3" required></textarea></label>
+        <p class="admin-help">二维码由服务器直接读取当前公开收款地址生成；请勿填写私钥、助记词或 API 密钥。</p>
+        <button class="admin-primary" type="submit">保存方式</button>
       </form>
     </template>
 

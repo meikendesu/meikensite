@@ -1,5 +1,27 @@
 <script setup>
+import { computed, inject, onMounted, ref } from 'vue'
 import { t } from '../i18n/index.js'
+import { SiteMethodStoreKey } from '../data/siteMethods.js'
+
+const store = inject(SiteMethodStoreKey)
+const error = ref('')
+const methods = computed(() => store.methods.value.filter((method) => method.category === 'contact'))
+
+function methodHref(method) {
+  if (method.actionType === 'email') return `mailto:${method.value}`
+  if (method.actionType === 'link') return method.value
+  return null
+}
+
+async function copyValue(method) {
+  try {
+    await navigator.clipboard.writeText(method.value)
+  } catch {
+    error.value = '复制失败，请手动复制。'
+  }
+}
+
+onMounted(() => store.loadMethods('contact').catch((requestError) => (error.value = requestError.message)))
 </script>
 
 <template>
@@ -10,36 +32,30 @@ import { t } from '../i18n/index.js'
       <p class="hero-copy">{{ t('contact.heroCopy') }}</p>
     </section>
     <section class="contact-options">
-      <a class="contact-row" href="mailto:alphametatech@gmail.com"
-        ><span class="row-icon"><i class="fa-regular fa-envelope"></i></span>
-        <div><small>{{ t('contact.emailLabel') }}</small><strong>{{ t('contact.emailValue') }}</strong></div>
-        <b><i class="fa-solid fa-chevron-right"></i></b
-      ></a>
-      <a class="contact-row" target="_blank" href="https://github.com/meikendesu" aria-label="Github"
-        ><span class="row-icon"><i class="fa-brands fa-github"></i></span>
-        <div><small>{{ t('contact.githubLabel') }}</small><strong>MEIKEN</strong></div>
-        <b><i class="fa-solid fa-chevron-right"></i></b
-      ></a>
-      <a class="contact-row" target="_blank" href="https://twitter.com/meikendesu" aria-label="X (Twitter)"
-        ><span class="row-icon"><i class="fa-brands fa-x-twitter"></i></span>
-        <div><small>{{ t('contact.xLabel') }}</small><strong>めいけん@meikendesu</strong></div>
-        <b><i class="fa-solid fa-chevron-right"></i></b
-      ></a>
-      <a class="contact-row" target="_blank" href="https://t.me/meikendesu" aria-label="Telegram"
-        ><span class="row-icon"><i class="fa-brands fa-telegram"></i></span>
-        <div><small>{{ t('contact.telegramLabel') }}</small><strong>めいけん</strong></div>
-        <b><i class="fa-solid fa-chevron-right"></i></b
-      ></a>
-      <a class="contact-row" target="_blank" href="https://www.youtube.com/@meikendesu" aria-label="Youtube"
-        ><span class="row-icon"><i class="fa-brands fa-youtube"></i></span>
-        <div><small>{{ t('contact.youtubeLabel') }}</small><strong>めいけん</strong></div>
-        <b><i class="fa-solid fa-chevron-right"></i></b
-      ></a>
-      <a class="contact-row" target="_blank" href="https://space.bilibili.com/625693351" aria-label="哔哩哔哩"
-        ><span class="row-icon"><i class="fa-brands fa-bilibili"></i></span>
-        <div><small>{{ t('contact.biliLabel') }}</small><strong>洛鸣希_mxli</strong></div>
-        <b><i class="fa-solid fa-chevron-right"></i></b
-      ></a>
+      <a
+        v-for="method in methods.filter(methodHref)"
+        :key="method.id"
+        class="contact-row"
+        :href="methodHref(method)"
+        :target="method.actionType === 'link' ? '_blank' : undefined"
+        :rel="method.actionType === 'link' ? 'noopener noreferrer' : undefined"
+      >
+        <span class="row-icon"><i :class="method.icon"></i></span>
+        <div><small>{{ method.description }}</small><strong>{{ method.name }}</strong></div>
+        <b><i class="fa-solid fa-chevron-right"></i></b>
+      </a>
+      <button
+        v-for="method in methods.filter((item) => !methodHref(item))"
+        :key="method.id"
+        class="contact-row contact-row-button"
+        type="button"
+        @click="copyValue(method)"
+      >
+        <span class="row-icon"><i :class="method.icon"></i></span>
+        <div><small>{{ method.description }}</small><strong>{{ method.name }}</strong></div>
+        <b><i class="fa-regular fa-copy"></i></b>
+      </button>
     </section>
+    <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
   </main>
 </template>

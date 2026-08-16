@@ -1,5 +1,6 @@
 // Cloudflare Worker：SSR、D1 项目内容与单管理员认证 API。
 import { render } from './dist/server/entry-server.js'
+import QRCode from 'qrcode'
 
 const INITIAL_PASSWORD = '123456'
 // Cloudflare Workers Web Crypto currently caps PBKDF2 at 100,000 iterations.
@@ -145,8 +146,99 @@ async function listProjects(db, includeDrafts = false) {
   return result.results.map(normalizeProject)
 }
 
+function normalizeSiteMethod(row) {
+  return {
+    id: row.id,
+    category: row.category,
+    methodKey: row.method_key,
+    name: row.name,
+    description: row.description,
+    value: row.value,
+    icon: row.icon,
+    actionType: row.action_type,
+    qrEnabled: Boolean(row.qr_enabled),
+    enabled: Boolean(row.is_enabled),
+    sortOrder: row.sort_order
+  }
+}
+
+async function listSiteMethods(db, category, includeDisabled = false) {
+  const result = await db.prepare(
+    `SELECT id, category, method_key, name, description, value, icon, action_type,
+      qr_enabled, is_enabled, sort_order
+     FROM site_methods
+     WHERE category = ? AND (? = 1 OR is_enabled = 1)
+     ORDER BY sort_order, id`
+  ).bind(category, includeDisabled ? 1 : 0).all()
+  return result.results.map(normalizeSiteMethod)
+}
+
+function validateSiteMethod(body) {
+  const method = {
+    id: body.id ? Number(body.id) : null,
+    category: String(body.category || '').trim(),
+    methodKey: String(body.methodKey || '').trim().toLowerCase(),
+    name: String(body.name || '').trim(),
+    description: String(body.description || '').trim(),
+    value: String(body.value || '').trim(),
+    icon: String(body.icon || 'fa-solid fa-link').trim(),
+    actionType: String(body.actionType || '').trim(),
+    qrEnabled: body.qrEnabled ? 1 : 0,
+    enabled: body.enabled ? 1 : 0,
+    sortOrder: Number(body.sortOrder || 0)
+  }
+  if (body.id && (!Number.isInteger(method.id) || method.id < 1)) return { error: '方式 ID 无效。' }
+  if (!['contact', 'donation'].includes(method.category)) return { error: '方式分类无效。' }
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(method.methodKey)) return { error: '标识只能包含小写字母、数字和连字符。' }
+  if (!['email', 'link', 'copy', 'crypto'].includes(method.actionType)) return { error: '操作类型无效。' }
+  if (!method.name || !method.value || method.name.length > 80 || method.description.length > 120 || method.value.length > 500 || method.icon.length > 100) {
+    return { error: '方式字段为空或超过长度限制。' }
+  }
+  if (!Number.isInteger(method.sortOrder) || method.sortOrder < 0 || method.sortOrder > 9999) return { error: '排序值必须是 0 到 9999 的整数。' }
+  if (method.actionType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(method.value)) return { error: '邮箱地址格式无效。' }
+  if (method.actionType === 'link') {
+    try {
+      const protocol = new URL(method.value).protocol
+      if (!['http:', 'https:'].includes(protocol)) return { error: '链接必须使用 http 或 https。' }
+    } catch {
+      return { error: '链接格式无效。' }
+    }
+  }
+  if (method.qrEnabled && (method.category !== 'donation' || method.actionType !== 'crypto')) {
+    return { error: '只有加密货币捐助方式可以生成二维码。' }
+  }
+  if (method.qrEnabled && method.value.includes('待填写')) return { error: '请填写真实公开收款地址后再启用二维码。' }
+  return { method }
+}
+
 async function handleApi(request, env, pathname) {
   if (!env.DB) return json({ error: 'D1 数据库尚未绑定。' }, 503)
+
+  if (request.method === 'GET' && pathname === '/api/site-methods') {
+    const category = new URL(request.url).searchParams.get('category')
+    if (!['contact', 'donation'].includes(category)) return json({ error: '方式分类无效。' }, 400)
+    const cacheControl = category === 'donation' ? 'no-store' : 'public, max-age=60'
+    return json({ methods: await listSiteMethods(env.DB, category) }, 200, { 'cache-control': cacheControl })
+  }
+
+  const qrMatch = request.method === 'GET' && pathname.match(/^\/api\/site-methods\/(\d+)\/qr$/)
+  if (qrMatch) {
+    const row = await env.DB.prepare(
+      `SELECT value FROM site_methods
+       WHERE id = ? AND category = 'donation' AND action_type = 'crypto'
+         AND qr_enabled = 1 AND is_enabled = 1`
+    ).bind(Number(qrMatch[1])).first()
+    if (!row) return json({ error: '二维码不存在。' }, 404)
+    const svg = await QRCode.toString(row.value, { type: 'svg', errorCorrectionLevel: 'M', margin: 2, width: 512 })
+    return new Response(svg, {
+      headers: {
+        'content-type': 'image/svg+xml;charset=UTF-8',
+        // 收款地址修改后必须立即生成一致的二维码，避免缓存旧地址。
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff'
+      }
+    })
+  }
 
   if (request.method === 'GET' && pathname === '/api/projects') {
     return json({ projects: await listProjects(env.DB) }, 200, { 'cache-control': 'public, max-age=60' })
@@ -238,6 +330,48 @@ async function handleApi(request, env, pathname) {
     return json({ projects: await listProjects(env.DB, true) })
   }
 
+  if (request.method === 'GET' && pathname === '/api/admin/site-methods') {
+    const methods = [
+      ...(await listSiteMethods(env.DB, 'contact', true)),
+      ...(await listSiteMethods(env.DB, 'donation', true))
+    ]
+    return json({ methods })
+  }
+
+  if (request.method === 'POST' && pathname === '/api/admin/site-methods') {
+    const validation = validateSiteMethod(await readJson(request))
+    if (validation.error) return json({ error: validation.error }, 400)
+    const method = validation.method
+    try {
+      if (method.id) {
+        await env.DB.prepare(
+          `UPDATE site_methods SET category = ?, method_key = ?, name = ?, description = ?,
+            value = ?, icon = ?, action_type = ?, qr_enabled = ?, is_enabled = ?,
+            sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        ).bind(method.category, method.methodKey, method.name, method.description, method.value,
+          method.icon, method.actionType, method.qrEnabled, method.enabled, method.sortOrder, method.id).run()
+      } else {
+        await env.DB.prepare(
+          `INSERT INTO site_methods
+            (category, method_key, name, description, value, icon, action_type, qr_enabled, is_enabled, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(method.category, method.methodKey, method.name, method.description, method.value,
+          method.icon, method.actionType, method.qrEnabled, method.enabled, method.sortOrder).run()
+      }
+    } catch (error) {
+      if (error?.message?.includes('UNIQUE constraint failed')) return json({ error: '方式标识已存在。' }, 409)
+      throw error
+    }
+    return json({ ok: true })
+  }
+
+  if (request.method === 'DELETE' && pathname.startsWith('/api/admin/site-methods/')) {
+    const id = Number(pathname.slice('/api/admin/site-methods/'.length))
+    if (!Number.isInteger(id) || id < 1) return json({ error: '方式 ID 无效。' }, 400)
+    await env.DB.prepare('DELETE FROM site_methods WHERE id = ?').bind(id).run()
+    return json({ ok: true })
+  }
+
   if (request.method === 'POST' && pathname === '/api/admin/projects') {
     const body = await readJson(request)
     const slug = String(body.slug || '').trim().toLowerCase()
@@ -275,6 +409,24 @@ async function handleApi(request, env, pathname) {
   return json({ error: '接口不存在。' }, 404)
 }
 
+async function renderPage(renderUrl, request, env, origin, statusOverride) {
+  const rendered = await render(renderUrl, request, env)
+  const templateRes = await env.ASSETS.fetch(new Request(new URL('/index.html', origin)))
+  if (!templateRes.ok) throw new Error(`SSR_TEMPLATE_${templateRes.status}`)
+
+  const template = await templateRes.text()
+  const state = JSON.stringify({ projects: rendered.projects, siteMethods: rendered.siteMethods }).replace(/</g, '\\u003c')
+  const full = template
+    .replace('<div id="app"></div>', `<div id="app">${rendered.html}</div>`)
+    .replace('<html lang="zh-CN">', `<html lang="${rendered.locale}">`)
+    .replace('</body>', `<script>window.__MEIKEN_STATE__=${state}</script></body>`)
+
+  return new Response(full, {
+    status: statusOverride ?? rendered.status,
+    headers: { 'content-type': 'text/html;charset=UTF-8' }
+  })
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
@@ -285,15 +437,7 @@ export default {
 
       if (/\.[a-zA-Z0-9]+$/.test(pathname)) return env.ASSETS.fetch(request)
 
-      const rendered = await render(pathname + url.search, request, env)
-      const templateRes = await env.ASSETS.fetch(new Request(new URL('/index.html', url.origin)))
-      const template = await templateRes.text()
-      const state = JSON.stringify({ projects: rendered.projects }).replace(/</g, '\\u003c')
-      const full = template
-        .replace('<div id="app"></div>', `<div id="app">${rendered.html}</div>`)
-        .replace('<html lang="zh-CN">', `<html lang="${rendered.locale}">`)
-        .replace('</body>', `<script>window.__MEIKEN_STATE__=${state}</script></body>`)
-      return new Response(full, { headers: { 'content-type': 'text/html;charset=UTF-8' } })
+      return await renderPage(pathname + url.search, request, env, url.origin)
     } catch (error) {
       console.error(JSON.stringify({ event: 'request_error', pathname, message: error?.message }))
       if (pathname.startsWith('/api/')) {
@@ -301,7 +445,13 @@ export default {
         const message = status === 413 ? '请求内容过大。' : status === 400 ? 'JSON 格式无效。' : '服务器处理失败。'
         return json({ error: message }, status)
       }
-      return new Response('Internal Server Error', { status: 500 })
+
+      try {
+        return await renderPage('/500', request, env, url.origin, 500)
+      } catch (renderError) {
+        console.error(JSON.stringify({ event: 'error_page_render_failed', pathname, message: renderError?.message }))
+        return new Response('Internal Server Error', { status: 500 })
+      }
     }
   }
 }

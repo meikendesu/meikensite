@@ -50,11 +50,11 @@ onMounted(async () => {
             :to="`/projects/${p.slug}`"
             :aria-label="`${t('common.viewProject')}：${p.name}`"
             ><i class="fa-solid fa-eye"></i> {{ t('common.viewProject') }}</router-link
-          ><a
-            class="work-btn work-btn-ghost"
-            href="#"
-            :aria-label="`${t('common.downloadApp')}：${p.name}`"
-            ><i class="fa-solid fa-download"></i> {{ t('common.downloadApp') }}</a
+          ><span
+            class="work-btn work-btn-ghost work-btn-unavailable"
+            role="status"
+            :aria-label="`${t('common.downloadUnavailable')}：${p.name}`"
+            ><i class="fa-solid fa-circle-info"></i> {{ t('common.downloadUnavailable') }}</span
           >
         </div>
       </article>

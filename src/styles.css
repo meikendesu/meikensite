@@ -536,6 +536,16 @@ button {
 .work-btn-ghost {
   background: transparent;
 }
+.work-btn-unavailable {
+  cursor: default;
+  opacity: 0.68;
+}
+.work-btn-unavailable:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+.work-btn-unavailable:active {
+  transform: none;
+}
 .work-btn i {
   font-size: 12px;
 }
@@ -545,6 +555,9 @@ button {
   }
   .work-btn:hover {
     background: rgba(0, 0, 0, 0.45);
+  }
+  .work-btn-unavailable:hover {
+    background: rgba(0, 0, 0, 0.2);
   }
 }
 /* ---------- 联系 ---------- */
@@ -562,6 +575,12 @@ button {
   border-radius: var(--radius);
   box-shadow: var(--shadow-1);
   transition: box-shadow 0.2s, transform 0.2s;
+}
+.contact-row-button {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .contact-row:hover {
   transform: translateY(-2px);
@@ -1294,7 +1313,8 @@ button {
   font-weight: 600;
 }
 .admin-panel input,
-.admin-panel textarea {
+.admin-panel textarea,
+.admin-panel select {
   width: 100%;
   border: 1px solid var(--separator);
   border-radius: 9px;
@@ -1305,6 +1325,15 @@ button {
   resize: vertical;
   user-select: text;
   -webkit-user-select: text;
+}
+.admin-panel select {
+  appearance: auto;
+}
+.admin-help {
+  margin: -4px 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 .admin-primary {
   padding: 10px 18px;

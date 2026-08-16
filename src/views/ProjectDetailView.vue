@@ -44,8 +44,11 @@ const rendered = computed(() => (project.value ? md.render(project.value.markdow
       </section>
       <article class="markdown-body" v-html="rendered"></article>
       <div class="detail-actions">
-        <a class="work-btn" href="#" :aria-label="`${t('common.downloadApp')}：${project.name}`"
-          ><i class="fa-solid fa-download"></i> {{ t('common.downloadApp') }}</a
+        <span
+          class="work-btn work-btn-unavailable"
+          role="status"
+          :aria-label="`${t('common.downloadUnavailable')}：${project.name}`"
+          ><i class="fa-solid fa-circle-info"></i> {{ t('common.downloadUnavailable') }}</span
         >
       </div>
     </template>

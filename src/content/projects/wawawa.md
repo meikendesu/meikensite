@@ -13,7 +13,4 @@
 
 ## 项目演示视频
 
-<video controls>
-    <source src="/shared-assets/videos/flower.mp4" type="video/mp4" />
-</video>
-
+> 演示视频暂未提供。
