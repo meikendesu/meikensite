@@ -276,7 +276,7 @@ button {
   @apply mt-auto grid grid-cols-2 gap-3.5;
 }
 .module-card {
-  @apply relative flex min-h-[clamp(145px,23vh,184px)] flex-col overflow-hidden rounded-card border border-separator p-[18px] shadow-panel transition-[transform,box-shadow] duration-200;
+  @apply relative flex min-h-[clamp(145px,23vh,184px)] flex-col overflow-hidden rounded-card border border-separator p-[18px] shadow-panel transition-[translate,box-shadow] duration-200;
 }
 .module-card:hover {
   @apply -translate-y-[3px] shadow-floating;
@@ -431,7 +431,7 @@ button {
   @apply grid gap-[15px];
 }
 .work-card {
-  @apply relative flex min-h-[236px] flex-col overflow-hidden rounded-card border border-separator p-[22px] shadow-panel transition-[transform,box-shadow] duration-200;
+  @apply relative flex min-h-[236px] flex-col overflow-hidden rounded-card border border-separator p-[22px] shadow-panel transition-[translate,box-shadow] duration-200;
   color: hsl(var(--card-hue, 210), 44%, 30%);
   background: hsla(var(--card-hue, 210), 78%, 92%, 0.8);
 }
@@ -464,7 +464,7 @@ button {
   @apply mt-7 flex items-center justify-center gap-4;
 }
 .project-pagination button {
-  @apply inline-flex items-center gap-2 rounded-xl border border-separator bg-[var(--bg-card)] px-4 py-2 text-[13px] font-semibold text-accent shadow-panel transition-[transform,opacity] duration-150;
+  @apply inline-flex items-center gap-2 rounded-xl border border-separator bg-[var(--bg-card)] px-4 py-2 text-[13px] font-semibold text-accent shadow-panel transition-[translate,opacity,box-shadow] duration-150;
 }
 .project-pagination button:not(:disabled):hover {
   @apply -translate-y-0.5 shadow-floating;
@@ -519,7 +519,7 @@ button {
   @apply grid gap-3;
 }
 .contact-row {
-  @apply flex items-center gap-[13px] rounded-[var(--radius)] border border-separator bg-panel p-4 shadow-panel transition-[box-shadow,transform] duration-200;
+  @apply flex items-center gap-[13px] rounded-[var(--radius)] border border-separator bg-panel p-4 shadow-panel transition-[box-shadow,translate] duration-200;
 }
 .contact-row-button {
   @apply w-full cursor-pointer text-left text-inherit;
