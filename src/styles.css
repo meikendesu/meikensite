@@ -1327,7 +1327,34 @@ button {
   -webkit-user-select: text;
 }
 .admin-panel select {
-  appearance: auto;
+  appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+}
+.custom-select {
+  position: relative;
+  display: block;
+}
+.custom-select select {
+  min-height: 42px;
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--separator));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-control) 92%, #fff), var(--bg-control));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.custom-select select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.custom-select > i {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: var(--accent);
+  font-size: 11px;
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 .admin-help {
   margin: -4px 0 16px;
@@ -1375,11 +1402,14 @@ button {
   margin-top: 4px;
   color: var(--muted);
 }
-.admin-project-list button {
+.admin-project-list button,
+.admin-list-actions a {
   margin-left: 8px;
   border: 0;
   background: transparent;
   color: var(--accent);
+  font: inherit;
+  text-decoration: none;
   cursor: pointer;
 }
 .admin-project-list button.danger,
@@ -1394,10 +1424,10 @@ button {
   text-align: center;
   color: var(--muted);
 }
-.markdown-toolbar {
-  margin: 8px 0;
-  font-size: 13px;
-  font-weight: 600;
+.admin-list-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 .file-button {
   display: inline-flex !important;
@@ -1410,6 +1440,77 @@ button {
 }
 .file-button input {
   display: none;
+}
+.markdown-editor-header,
+.admin-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.markdown-editor-header {
+  margin: 8px 0 10px;
+}
+.markdown-editor-header strong,
+.markdown-editor-header small {
+  display: block;
+}
+.markdown-editor-header small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.markdown-format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  background: var(--bg-control);
+  overflow-x: auto;
+}
+.markdown-format-toolbar button {
+  width: 36px;
+  height: 34px;
+  flex: 0 0 36px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.markdown-format-toolbar button:hover {
+  background: var(--fill);
+  color: var(--accent);
+}
+.markdown-heading-select {
+  display: inline-flex !important;
+  width: 116px;
+  flex: 0 0 116px;
+  margin: 0 !important;
+}
+.markdown-heading-select select {
+  min-height: 34px;
+  padding: 6px 30px 6px 10px;
+  font-size: 12px;
+}
+.markdown-heading-select > i {
+  right: 10px;
+}
+.markdown-pane {
+  min-width: 0;
+}
+.markdown-pane-title {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .markdown-input,
 .markdown-preview {
@@ -1427,6 +1528,27 @@ button {
   border-radius: 9px;
   background: var(--bg-control);
 }
+.markdown-preview-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+}
+.admin-form-actions {
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 @media (max-width: 760px) {
   .admin-header,
   .admin-section-title {
@@ -1440,5 +1562,13 @@ button {
   .markdown-input,
   .markdown-preview {
     min-height: 320px;
+  }
+  .admin-project-list article,
+  .markdown-editor-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-list-actions {
+    align-self: flex-end;
   }
 }

@@ -12,6 +12,10 @@ const routes = [
   { path: '/contact', name: 'contact', component: () => import('./views/ContactView.vue'), meta: { titleKey: 'docTitle.contact', tabbar: true } },
   { path: '/support', name: 'support', component: () => import('./views/SupportView.vue'), meta: { titleKey: 'docTitle.support', tabbar: true } },
   { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { title: 'Admin · MEIKEN' } },
+  { path: '/admin/projects/new', name: 'admin-project-new', component: () => import('./views/AdminProjectEditorView.vue'), meta: { title: '新建项目 · Admin · MEIKEN' } },
+  { path: '/admin/projects/:id/edit', name: 'admin-project-edit', component: () => import('./views/AdminProjectEditorView.vue'), meta: { title: '编辑项目 · Admin · MEIKEN' } },
+  { path: '/admin/methods/new', name: 'admin-method-new', component: () => import('./views/AdminMethodEditorView.vue'), meta: { title: '添加方式 · Admin · MEIKEN' } },
+  { path: '/admin/methods/:id/edit', name: 'admin-method-edit', component: () => import('./views/AdminMethodEditorView.vue'), meta: { title: '编辑方式 · Admin · MEIKEN' } },
   { path: '/500', name: 'server-error', component: () => import('./views/ErrorView.vue'), meta: { code: 500, titleKey: 'docTitle.error500' } },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('./views/ErrorView.vue'), meta: { code: 404, titleKey: 'docTitle.error404' } }
 ]

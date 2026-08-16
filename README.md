@@ -23,7 +23,7 @@ meikensite/
 │   ├── entry-server.js     # SSR 入口
 │   ├── router.js           # 页面路由与按需拆包
 │   ├── data/projects.js    # 项目数据 store / API 客户端
-│   └── views/AdminView.vue # 登录、改密、项目与站点方式管理
+│   └── views/              # 公开页面、Admin 列表与独立编辑页面
 └── public/                 # 字体等静态资源
 ```
 
@@ -49,6 +49,10 @@ npm run dev:worker          # 构建并启动完整 Worker + D1 环境
 | `/contact` | 联系方式 |
 | `/support` | USDT、ETH、BTC、PayPal 捐助方式 |
 | `/admin` | 管理员登录与项目发布 |
+| `/admin/projects/new` | 独立的项目与 Markdown 新建页面 |
+| `/admin/projects/:id/edit` | 独立的项目与 Markdown 编辑页面 |
+| `/admin/methods/new` | 独立的联系方式/捐助方式添加页面 |
+| `/admin/methods/:id/edit` | 独立的联系方式/捐助方式编辑页面 |
 
 ## 本地使用 Admin
 
@@ -64,7 +68,7 @@ npm run dev:worker
 
 1. 使用初始密码 `123456` 登录。
 2. 首次登录会被强制要求设置至少 8 个字符的新密码。
-3. 新建或编辑项目，可直接撰写 Markdown，也可导入不超过 400 KB 的 `.md` 文件。
+3. 新建或编辑项目会进入独立页面；内置 Markdown 工具栏支持标题、粗体、斜体、链接、列表、引用和代码，并同步显示实时预览。
 4. 勾选“公开发布”后保存，文章会出现在 `/projects`。
 5. 在“联系方式与捐助方式”中可以新增、编辑、隐藏或删除公开方式。
 6. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
