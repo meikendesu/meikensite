@@ -638,7 +638,8 @@ button {
 
 /* ---------- 底部导航（macOS 材质 toolbar） ---------- */
 .tabbar {
-  @apply fixed bottom-6 left-1/2 z-5 grid w-[min(calc(100%_-_32px),320px)] -translate-x-1/2 grid-cols-6 justify-items-center rounded-full border border-separator bg-[var(--bg-toolbar)] px-3 pt-2 pb-[7px] shadow-floating transition-transform duration-300 ease-in-out;
+  @apply fixed bottom-6 left-1/2 z-5 grid w-[min(calc(100%_-_32px),320px)] grid-cols-6 justify-items-center rounded-full border border-separator bg-[var(--bg-toolbar)] px-3 pt-2 pb-[7px] shadow-floating transition-transform duration-300 ease-in-out;
+  transform: translateX(-50%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
 }
@@ -775,6 +776,7 @@ button {
 @media (min-width: 900px) {
   .shell {
     width: min(100%, 1080px);
+    max-width: none;
     padding: 72px 32px 42px;
   }
   .home-shell {
