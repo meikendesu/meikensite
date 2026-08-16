@@ -7,7 +7,9 @@ declare module '*dist/server/entry-server.js' {
     html: string
     locale: string
     projects: unknown[]
+    projectPagination: unknown
     siteMethods: unknown[]
+    aboutContent: unknown
     status: number
   }>
 }

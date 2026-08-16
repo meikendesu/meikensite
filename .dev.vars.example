@@ -1,0 +1,2 @@
+# 本地后台私有入口密钥。请复制为 .dev.vars 并替换成足够长的随机值。
+ADMIN_ENTRY_KEY=replace-with-a-long-random-entry-key

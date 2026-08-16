@@ -10,7 +10,32 @@ export interface Project {
   desc: string
   markdown: string
   published: boolean
+  publishedAt: string
   createdAt?: string
+  updatedAt: string
+}
+
+export interface ProjectPagination {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+export interface AboutFact {
+  label: string
+  value: string
+}
+
+export interface AboutContent {
+  locale: Locale
+  heroTitleLine1: string
+  heroTitleLine2: string
+  heroCopy: string
+  introHeading: string
+  introParagraph1: string
+  introParagraph2: string
+  facts: AboutFact[]
   updatedAt?: string
 }
 

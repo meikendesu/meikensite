@@ -30,7 +30,7 @@ export const messages: Record<Locale, MessageTree> = {
       fact2Label: '业余开发者', fact2Value: '略懂一些编程、AI 和 Linux 等...',
       fact3Label: '菜鸡音游痴', fact3Value: '舞萌 / 中二 / PJSK / DJMAX / ...'
     },
-    projects: { title1: '我正在开发/参与', title2: '的项目。' },
+    projects: { title1: '我正在开发/参与', title2: '的项目。', pagination: '项目分页', previous: '上一页', next: '下一页', publishedAt: '发布', updatedAt: '更新' },
     contact: {
       title: '有什么想说的？',
       heroCopy: '无论是项目合作、灵感交换，还是简单地打个招呼，都很欢迎。',
@@ -90,7 +90,7 @@ export const messages: Record<Locale, MessageTree> = {
       fact2Label: '業餘開發者', fact2Value: '略懂一些程式設計、AI 和 Linux 等...',
       fact3Label: '菜雞音遊癡', fact3Value: '舞萌 / 中二 / PJSK / DJMAX / ...'
     },
-    projects: { title1: '我正在開發/參與', title2: '的項目。' },
+    projects: { title1: '我正在開發/參與', title2: '的項目。', pagination: '項目分頁', previous: '上一頁', next: '下一頁', publishedAt: '發布', updatedAt: '更新' },
     contact: {
       title: '有什麼想說的？',
       heroCopy: '無論是項目合作、靈感交換，還是簡單地打個招呼，都很歡迎。',
@@ -150,7 +150,7 @@ export const messages: Record<Locale, MessageTree> = {
       fact2Label: 'Hobbyist dev', fact2Value: 'A bit of coding, AI and Linux...',
       fact3Label: 'Rhythm gamer', fact3Value: 'Maimai / Chunithm / PJSK / DJMAX / ...'
     },
-    projects: { title1: 'Things I build', title2: 'or take part in.' },
+    projects: { title1: 'Things I build', title2: 'or take part in.', pagination: 'Project pages', previous: 'Previous', next: 'Next', publishedAt: 'Published', updatedAt: 'Updated' },
     contact: {
       title: 'Want to say hi?',
       heroCopy: 'Whether it is a collaboration, an idea, or just a hello — always welcome.',
@@ -210,7 +210,7 @@ export const messages: Record<Locale, MessageTree> = {
       fact2Label: '趣味の開発者', fact2Value: 'プログラミング・AI・Linux などを少々...',
       fact3Label: '音ゲー好き', fact3Value: 'maimai / チュウニズム / PJSK / DJMAX / ...'
     },
-    projects: { title1: '私が作る・', title2: '参加するプロジェクト。' },
+    projects: { title1: '私が作る・', title2: '参加するプロジェクト。', pagination: 'プロジェクトのページ', previous: '前へ', next: '次へ', publishedAt: '公開', updatedAt: '更新' },
     contact: {
       title: 'なにか一言ありますか？',
       heroCopy: 'コラボ、アイデア、それとも単なる挨拶でも、大歓迎です。',

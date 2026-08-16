@@ -165,6 +165,25 @@ button {
   @apply top-3.5;
 }
 
+.page-loading {
+  @apply fixed inset-0 z-[200] grid place-items-center bg-[var(--bg)] backdrop-blur-sm;
+}
+.page-loading-ring {
+  @apply block size-12 rounded-full border-4 border-[var(--separator)] border-t-accent;
+  animation: page-loading-spin 0.75s linear infinite;
+}
+.loader-fade-enter-active,
+.loader-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.loader-fade-enter-from,
+.loader-fade-leave-to {
+  opacity: 0;
+}
+@keyframes page-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -437,6 +456,24 @@ button {
 }
 .work-desc {
   @apply m-0 text-[13px] leading-relaxed opacity-[0.78];
+}
+.work-meta {
+  @apply mt-3 text-[11px] leading-relaxed text-muted;
+}
+.project-pagination {
+  @apply mt-7 flex items-center justify-center gap-4;
+}
+.project-pagination button {
+  @apply inline-flex items-center gap-2 rounded-xl border border-separator bg-[var(--bg-card)] px-4 py-2 text-[13px] font-semibold text-accent shadow-panel transition-[transform,opacity] duration-150;
+}
+.project-pagination button:not(:disabled):hover {
+  @apply -translate-y-0.5 shadow-floating;
+}
+.project-pagination button:disabled {
+  @apply cursor-not-allowed opacity-35;
+}
+.project-pagination span {
+  @apply min-w-16 text-center text-xs font-semibold text-muted;
 }
 .work-actions {
   @apply mt-auto flex flex-wrap gap-2 pt-[18px];
@@ -1104,6 +1141,21 @@ button {
 .admin-shell {
   @apply w-full max-w-[1180px] pt-12;
 }
+.admin-hidden-error {
+  @apply mx-auto my-[60px];
+}
+.admin-about-locale {
+  @apply max-w-[320px];
+}
+.admin-about-facts {
+  @apply mt-6 border-t border-separator pt-6;
+}
+.admin-about-fact {
+  @apply mt-3 grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto] items-end gap-3 rounded-xl bg-[var(--fill)] p-3;
+}
+.admin-about-fact .danger {
+  @apply rounded-lg border-0 bg-[rgba(255,59,48,0.12)] px-3 py-[11px] text-xs font-semibold text-[var(--sys-red)] disabled:cursor-not-allowed disabled:opacity-35;
+}
 .admin-header,
 .admin-section-title,
 .admin-header-actions,
@@ -1593,6 +1645,9 @@ button {
   .admin-list-actions {
     grid-column: 2 / -1;
     align-self: flex-end;
+  }
+  .admin-about-fact {
+    grid-template-columns: 1fr;
   }
   .icon-picker-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));

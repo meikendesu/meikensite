@@ -6,9 +6,16 @@ const INITIAL_PASSWORD = '123456'
 // Cloudflare Workers Web Crypto currently caps PBKDF2 at 100,000 iterations.
 const PASSWORD_ITERATIONS = 100000
 const SESSION_COOKIE = 'meiken_admin_session'
+const ADMIN_GATE_COOKIE = 'meiken_admin_gate'
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7
+const ADMIN_GATE_MAX_AGE = 60 * 60 * 12
 const MAX_JSON_BYTES = 512 * 1024
 const encoder = new TextEncoder()
+
+type WorkerEnv = Env & { ADMIN_ENTRY_KEY?: string }
+type TimingSafeSubtleCrypto = SubtleCrypto & {
+  timingSafeEqual(a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView): boolean
+}
 
 interface AdminRow {
   password_hash: string
@@ -18,9 +25,11 @@ interface AdminRow {
 }
 
 function json(data: unknown, status = 200, headers: HeadersInit = {}) {
+  const responseHeaders = new Headers(headers)
+  if (!responseHeaders.has('cache-control')) responseHeaders.set('cache-control', 'no-store')
   return Response.json(data, {
     status,
-    headers: { 'cache-control': 'no-store', ...headers }
+    headers: responseHeaders
   })
 }
 
@@ -36,8 +45,12 @@ function randomBase64(length = 32) {
   return toBase64(bytes)
 }
 
-async function sha256(value) {
-  return toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))))
+async function sha256Bytes(value: string) {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value)))
+}
+
+async function sha256(value: string) {
+  return toBase64(await sha256Bytes(value))
 }
 
 async function hashPassword(password, salt, iterations = PASSWORD_ITERATIONS) {
@@ -50,13 +63,9 @@ async function hashPassword(password, salt, iterations = PASSWORD_ITERATIONS) {
   return toBase64(new Uint8Array(bits))
 }
 
-function constantTimeEqual(left, right) {
-  const a = encoder.encode(left)
-  const b = encoder.encode(right)
-  let mismatch = a.length ^ b.length
-  const length = Math.max(a.length, b.length)
-  for (let i = 0; i < length; i += 1) mismatch |= (a[i] || 0) ^ (b[i] || 0)
-  return mismatch === 0
+async function constantTimeEqual(left: string, right: string) {
+  const [a, b] = await Promise.all([sha256Bytes(left), sha256Bytes(right)])
+  return (crypto.subtle as TimingSafeSubtleCrypto).timingSafeEqual(a, b)
 }
 
 async function ensureAdmin(db) {
@@ -96,6 +105,31 @@ async function getSession(request, db) {
 function sessionCookie(token, request, maxAge = SESSION_MAX_AGE) {
   const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : ''
   return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly${secure}; SameSite=Strict; Max-Age=${maxAge}`
+}
+
+function adminGateCookie(token: string, request: Request, maxAge = ADMIN_GATE_MAX_AGE) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : ''
+  return `${ADMIN_GATE_COOKIE}=${token}; Path=/; HttpOnly${secure}; SameSite=Strict; Max-Age=${maxAge}`
+}
+
+function adminEntryKey(env: Env) {
+  return String((env as WorkerEnv).ADMIN_ENTRY_KEY || '')
+}
+
+async function expectedAdminGate(env: Env) {
+  const key = adminEntryKey(env)
+  return key ? sha256(`meiken-admin-gate:${key}`) : ''
+}
+
+async function hasAdminGate(request: Request, env: Env) {
+  const candidate = getCookie(request, ADMIN_GATE_COOKIE)
+  const expected = await expectedAdminGate(env)
+  return Boolean(candidate && expected && await constantTimeEqual(candidate, expected))
+}
+
+async function hasAdminPageAccess(request: Request, env: Env) {
+  if (!env.DB) return false
+  return Boolean(await getSession(request, env.DB)) || await hasAdminGate(request, env)
 }
 
 function assertSameOrigin(request) {
@@ -139,6 +173,7 @@ function normalizeProject(row) {
     desc: row.description,
     markdown: row.markdown,
     published: Boolean(row.is_published),
+    publishedAt: row.published_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -147,10 +182,99 @@ function normalizeProject(row) {
 async function listProjects(db, includeDrafts = false) {
   const where = includeDrafts ? '' : 'WHERE is_published = 1'
   const result = await db.prepare(
-    `SELECT id, slug, tag, title, description, markdown, is_published, created_at, updated_at
-       FROM projects ${where} ORDER BY updated_at DESC, id DESC`
+    `SELECT id, slug, tag, title, description, markdown, is_published,
+      published_at, created_at, updated_at
+       FROM projects ${where} ORDER BY published_at DESC, updated_at DESC, id DESC`
   ).all()
   return result.results.map(normalizeProject)
+}
+
+async function listPublishedProjectPage(db: D1Database, page: number) {
+  const pageSize = 10
+  const offset = (page - 1) * pageSize
+  const [result, countRow] = await Promise.all([
+    db.prepare(
+      `SELECT id, slug, tag, title, description, '' AS markdown, is_published,
+        published_at, created_at, updated_at
+       FROM projects WHERE is_published = 1
+       ORDER BY published_at DESC, updated_at DESC, id DESC LIMIT ? OFFSET ?`
+    ).bind(pageSize, offset).all(),
+    db.prepare('SELECT COUNT(*) AS count FROM projects WHERE is_published = 1').first<{ count: number }>()
+  ])
+  const total = Number(countRow?.count || 0)
+  return {
+    projects: result.results.map(normalizeProject),
+    pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) }
+  }
+}
+
+function normalizeAboutContent(row) {
+  let facts = []
+  try {
+    const parsed = JSON.parse(String(row.facts_json || '[]'))
+    if (Array.isArray(parsed)) facts = parsed
+  } catch {
+    facts = []
+  }
+  return {
+    locale: row.locale,
+    heroTitleLine1: row.hero_title_line_1,
+    heroTitleLine2: row.hero_title_line_2,
+    heroCopy: row.hero_copy,
+    introHeading: row.intro_heading,
+    introParagraph1: row.intro_paragraph_1,
+    introParagraph2: row.intro_paragraph_2,
+    facts,
+    updatedAt: row.updated_at
+  }
+}
+
+async function getAboutContent(db: D1Database, locale: string) {
+  const row = await db.prepare(
+    `SELECT locale, hero_title_line_1, hero_title_line_2, hero_copy, intro_heading,
+      intro_paragraph_1, intro_paragraph_2, facts_json, updated_at
+     FROM about_content WHERE locale = ?`
+  ).bind(locale).first()
+  return row ? normalizeAboutContent(row) : null
+}
+
+async function listAboutContents(db: D1Database) {
+  const result = await db.prepare(
+    `SELECT locale, hero_title_line_1, hero_title_line_2, hero_copy, intro_heading,
+      intro_paragraph_1, intro_paragraph_2, facts_json, updated_at
+     FROM about_content ORDER BY CASE locale
+       WHEN 'zh-CN' THEN 1 WHEN 'zh-TW' THEN 2 WHEN 'en' THEN 3 ELSE 4 END`
+  ).all()
+  return result.results.map(normalizeAboutContent)
+}
+
+function validateAboutContent(body: Record<string, unknown>) {
+  const facts = Array.isArray(body.facts) ? body.facts.map((item) => ({
+    label: String((item as Record<string, unknown>)?.label || '').trim(),
+    value: String((item as Record<string, unknown>)?.value || '').trim()
+  })) : []
+  const content = {
+    locale: String(body.locale || ''),
+    heroTitleLine1: String(body.heroTitleLine1 || '').trim(),
+    heroTitleLine2: String(body.heroTitleLine2 || '').trim(),
+    heroCopy: String(body.heroCopy || '').trim(),
+    introHeading: String(body.introHeading || '').trim(),
+    introParagraph1: String(body.introParagraph1 || '').trim(),
+    introParagraph2: String(body.introParagraph2 || '').trim(),
+    facts
+  }
+  if (!['zh-CN', 'zh-TW', 'en', 'ja'].includes(content.locale)) return { error: '语言无效。' }
+  if (!content.heroTitleLine1 || !content.heroTitleLine2 || !content.introHeading || !content.introParagraph1) {
+    return { error: '关于页面必填内容不能为空。' }
+  }
+  if (content.heroTitleLine1.length > 120 || content.heroTitleLine2.length > 120 || content.heroCopy.length > 300 ||
+      content.introHeading.length > 120 || content.introParagraph1.length > 2000 || content.introParagraph2.length > 2000) {
+    return { error: '关于页面内容超过长度限制。' }
+  }
+  if (!facts.length || facts.length > 8 || facts.some((fact) => !fact.label || !fact.value || fact.label.length > 120 || fact.value.length > 300)) {
+    return { error: '关于页面信息条目需要 1 到 8 条，且标签和值不能为空。' }
+  }
+  return { content }
 }
 
 function normalizeSiteMethod(row) {
@@ -223,6 +347,15 @@ function validateSiteMethod(body: Record<string, unknown>) {
 async function handleApi(request: Request, env: Env, pathname: string) {
   if (!env.DB) return json({ error: 'D1 数据库尚未绑定。' }, 503)
 
+  if (request.method === 'GET' && pathname === '/api/about') {
+    const locale = new URL(request.url).searchParams.get('locale') || 'zh-CN'
+    if (!['zh-CN', 'zh-TW', 'en', 'ja'].includes(locale)) return json({ error: '语言无效。' }, 400)
+    const content = await getAboutContent(env.DB, locale)
+    return content
+      ? json({ content }, 200, { 'cache-control': 'public, max-age=60' })
+      : json({ error: '关于页面内容不存在。' }, 404)
+  }
+
   if (request.method === 'GET' && pathname === '/api/site-methods') {
     const category = new URL(request.url).searchParams.get('category')
     if (!['contact', 'donation'].includes(category)) return json({ error: '方式分类无效。' }, 400)
@@ -250,13 +383,17 @@ async function handleApi(request: Request, env: Env, pathname: string) {
   }
 
   if (request.method === 'GET' && pathname === '/api/projects') {
-    return json({ projects: await listProjects(env.DB) }, 200, { 'cache-control': 'public, max-age=60' })
+    const pageValue = new URL(request.url).searchParams.get('page') || '1'
+    const page = Number(pageValue)
+    if (!Number.isInteger(page) || page < 1 || page > 100000) return json({ error: '页码无效。' }, 400)
+    return json(await listPublishedProjectPage(env.DB, page), 200, { 'cache-control': 'public, max-age=60' })
   }
 
   if (request.method === 'GET' && pathname.startsWith('/api/projects/')) {
     const slug = decodeURIComponent(pathname.slice('/api/projects/'.length))
     const row = await env.DB.prepare(
-      `SELECT id, slug, tag, title, description, markdown, is_published, created_at, updated_at
+      `SELECT id, slug, tag, title, description, markdown, is_published,
+        published_at, created_at, updated_at
          FROM projects WHERE slug = ? AND is_published = 1`
     ).bind(slug).first()
     return row ? json({ project: normalizeProject(row) }, 200, { 'cache-control': 'public, max-age=60' }) : json({ error: '项目不存在。' }, 404)
@@ -266,7 +403,17 @@ async function handleApi(request: Request, env: Env, pathname: string) {
     return json({ error: '请求来源无效。' }, 403)
   }
 
+  if (request.method === 'POST' && pathname === '/api/admin/access') {
+    const configuredKey = adminEntryKey(env)
+    const { key = '' } = await readJson(request)
+    if (!configuredKey || !await constantTimeEqual(String(key), configuredKey)) {
+      return json({ error: '接口不存在。' }, 404)
+    }
+    return json({ ok: true }, 200, { 'set-cookie': adminGateCookie(await expectedAdminGate(env), request) })
+  }
+
   if (request.method === 'POST' && pathname === '/api/admin/login') {
+    if (!await hasAdminGate(request, env)) return json({ error: '接口不存在。' }, 404)
     await ensureAdmin(env.DB)
     const { password = '' } = await readJson(request)
     const ipHash = await sha256(request.headers.get('cf-connecting-ip') || 'local-development')
@@ -279,7 +426,7 @@ async function handleApi(request: Request, env: Env, pathname: string) {
       'SELECT password_hash, password_salt, password_iterations, must_change_password FROM admin_users WHERE id = 1'
     ).first<AdminRow>()
     const candidate = await hashPassword(String(password), admin.password_salt, admin.password_iterations)
-    if (!constantTimeEqual(candidate, admin.password_hash)) {
+    if (!await constantTimeEqual(candidate, admin.password_hash)) {
       await env.DB.prepare('INSERT INTO admin_login_attempts (ip_hash) VALUES (?)').bind(ipHash).run()
       return json({ error: '密码错误。' }, 401)
     }
@@ -301,7 +448,11 @@ async function handleApi(request: Request, env: Env, pathname: string) {
   }
 
   const session = await getSession(request, env.DB)
-  if (!session) return json({ error: '请先登录。' }, 401)
+  if (!session) {
+    return await hasAdminGate(request, env)
+      ? json({ error: '请先登录。' }, 401)
+      : json({ error: '接口不存在。' }, 404)
+  }
 
   if (request.method === 'GET' && pathname === '/api/admin/session') {
     return json({ authenticated: true, mustChangePassword: Boolean(session.must_change_password) })
@@ -309,7 +460,10 @@ async function handleApi(request: Request, env: Env, pathname: string) {
 
   if (request.method === 'POST' && pathname === '/api/admin/logout') {
     await env.DB.prepare('DELETE FROM admin_sessions WHERE token_hash = ?').bind(session.token_hash).run()
-    return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', request, 0) })
+    const headers = new Headers()
+    headers.append('set-cookie', sessionCookie('', request, 0))
+    headers.append('set-cookie', adminGateCookie('', request, 0))
+    return json({ ok: true }, 200, headers)
   }
 
   if (request.method === 'POST' && pathname === '/api/admin/change-password') {
@@ -319,7 +473,7 @@ async function handleApi(request: Request, env: Env, pathname: string) {
       'SELECT password_hash, password_salt, password_iterations FROM admin_users WHERE id = 1'
     ).first<AdminRow>()
     const currentHash = await hashPassword(String(currentPassword), admin.password_salt, admin.password_iterations)
-    if (!constantTimeEqual(currentHash, admin.password_hash)) return json({ error: '当前密码错误。' }, 401)
+    if (!await constantTimeEqual(currentHash, admin.password_hash)) return json({ error: '当前密码错误。' }, 401)
 
     const salt = randomBase64(16)
     const passwordHash = await hashPassword(String(newPassword), salt)
@@ -337,6 +491,34 @@ async function handleApi(request: Request, env: Env, pathname: string) {
 
   if (request.method === 'GET' && pathname === '/api/admin/projects') {
     return json({ projects: await listProjects(env.DB, true) })
+  }
+
+  if (request.method === 'GET' && pathname === '/api/admin/about') {
+    return json({ contents: await listAboutContents(env.DB) })
+  }
+
+  if (request.method === 'POST' && pathname === '/api/admin/about') {
+    const validation = validateAboutContent(await readJson(request))
+    if (validation.error) return json({ error: validation.error }, 400)
+    const content = validation.content
+    await env.DB.prepare(
+      `INSERT INTO about_content
+        (locale, hero_title_line_1, hero_title_line_2, hero_copy, intro_heading,
+         intro_paragraph_1, intro_paragraph_2, facts_json, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(locale) DO UPDATE SET
+         hero_title_line_1 = excluded.hero_title_line_1,
+         hero_title_line_2 = excluded.hero_title_line_2,
+         hero_copy = excluded.hero_copy,
+         intro_heading = excluded.intro_heading,
+         intro_paragraph_1 = excluded.intro_paragraph_1,
+         intro_paragraph_2 = excluded.intro_paragraph_2,
+         facts_json = excluded.facts_json,
+         updated_at = CURRENT_TIMESTAMP`
+    ).bind(content.locale, content.heroTitleLine1, content.heroTitleLine2, content.heroCopy,
+      content.introHeading, content.introParagraph1, content.introParagraph2,
+      JSON.stringify(content.facts)).run()
+    return json({ ok: true })
   }
 
   if (request.method === 'GET' && pathname === '/api/admin/site-methods') {
@@ -409,21 +591,28 @@ async function handleApi(request: Request, env: Env, pathname: string) {
     const description = String(body.description || '').trim()
     const markdown = String(body.markdown || '')
     const published = body.published ? 1 : 0
+    const publishedAt = String(body.publishedAt || '').trim()
+    const updatedAt = String(body.updatedAt || '').trim()
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return json({ error: 'Slug 只能包含小写字母、数字和连字符。' }, 400)
     if (!title || title.length > 120 || tag.length > 80 || description.length > 500 || markdown.length > 400000) {
       return json({ error: '项目字段为空或超过长度限制。' }, 400)
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(publishedAt) || !/^\d{4}-\d{2}-\d{2}$/.test(updatedAt)) {
+      return json({ error: '发布日期和更新日期必须填写有效日期。' }, 400)
+    }
+    if (updatedAt < publishedAt) return json({ error: '更新日期不能早于发布日期。' }, 400)
 
     if (body.id) {
       await env.DB.prepare(
         `UPDATE projects SET slug = ?, tag = ?, title = ?, description = ?, markdown = ?,
-          is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      ).bind(slug, tag, title, description, markdown, published, Number(body.id)).run()
+          is_published = ?, published_at = ?, updated_at = ? WHERE id = ?`
+      ).bind(slug, tag, title, description, markdown, published, publishedAt, updatedAt, Number(body.id)).run()
     } else {
       await env.DB.prepare(
-        `INSERT INTO projects (slug, tag, title, description, markdown, is_published)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).bind(slug, tag, title, description, markdown, published).run()
+        `INSERT INTO projects
+          (slug, tag, title, description, markdown, is_published, published_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(slug, tag, title, description, markdown, published, publishedAt, updatedAt).run()
     }
     return json({ ok: true })
   }
@@ -444,7 +633,12 @@ async function renderPage(renderUrl: string, request: Request, env: Env, origin:
   if (!templateRes.ok) throw new Error(`SSR_TEMPLATE_${templateRes.status}`)
 
   const template = await templateRes.text()
-  const state = JSON.stringify({ projects: rendered.projects, siteMethods: rendered.siteMethods }).replace(/</g, '\\u003c')
+  const state = JSON.stringify({
+    projects: rendered.projects,
+    projectPagination: rendered.projectPagination,
+    siteMethods: rendered.siteMethods,
+    aboutContent: rendered.aboutContent
+  }).replace(/</g, '\\u003c')
   const full = template
     .replace('<div id="app"></div>', `<div id="app">${rendered.html}</div>`)
     .replace('<html lang="zh-CN">', `<html lang="${rendered.locale}">`)
@@ -466,7 +660,10 @@ export default {
 
       if (/\.[a-zA-Z0-9]+$/.test(pathname)) return env.ASSETS.fetch(request)
 
-      return await renderPage(pathname + url.search, request, env, url.origin)
+      const adminStatus = pathname === '/admin' || pathname.startsWith('/admin/')
+        ? (await hasAdminPageAccess(request, env) ? undefined : 404)
+        : undefined
+      return await renderPage(pathname + url.search, request, env, url.origin, adminStatus)
     } catch (error) {
       console.error(JSON.stringify({ event: 'request_error', pathname, message: error?.message }))
       if (pathname.startsWith('/api/')) {

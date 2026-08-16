@@ -5,7 +5,24 @@ import worker from '../worker'
 const origin = 'https://local.test'
 const template = await readFile(new URL('../dist/client/index.html', import.meta.url), 'utf8')
 
-const env = {
+function emptyStatement() {
+  return {
+    bind() { return this },
+    async first() { return null },
+    async all() { return { results: [], success: true } },
+    async run() { return { success: true } }
+  }
+}
+
+const mockDb = new Proxy({} as D1Database, {
+  get(_target, property) {
+    if (property === 'prepare') return () => emptyStatement()
+    if (property === 'batch') return async () => []
+    return undefined
+  }
+})
+
+const env: Env = {
   // 使用最小的本地 binding 替身调用 Worker，无需连接 Cloudflare 或真实 D1。
   ASSETS: {
     async fetch(input) {
@@ -18,15 +35,15 @@ const env = {
       }
       return new Response('asset not found', { status: 404 })
     }
-  },
-  // 不需要真实查询；异常用例会在构造 D1 语句前触发 URL 解码错误。
-  DB: {}
+  } as Fetcher,
+  // 最小 D1 替身：Admin 会话为空；畸形项目 URL 会在真正查询前触发解码错误。
+  DB: mockDb
 }
 
 async function request(pathname) {
   return worker.fetch(
     new Request(`${origin}${pathname}`, { headers: { 'accept-language': 'zh-CN' } }),
-    env as Env,
+    env,
     {} as ExecutionContext
   )
 }
@@ -44,13 +61,15 @@ assert.equal(home.status, 200, '已知路由状态码')
 assert.match(await home.text(), /<div id="app">.+<\/div>/s, '已知路由 SSR 内容')
 
 for (const [pathname, expectedText] of [
+  ['/admin', '正在检查登录状态'],
+  ['/admin/about', '正在加载关于页面内容'],
   ['/admin/projects/new', '正在加载编辑器'],
   ['/admin/projects/1/edit', '正在加载编辑器'],
   ['/admin/methods/new', '正在加载表单'],
   ['/admin/methods/1/edit', '正在加载表单']
 ]) {
   const response = await request(pathname)
-  assert.equal(response.status, 200, `${pathname} 状态码`)
+  assert.equal(response.status, 404, `${pathname} 未授权状态码`)
   assert.match(await response.text(), new RegExp(expectedText), `${pathname} SSR 内容`)
 }
 
@@ -63,7 +82,7 @@ assert.equal(asset.status, 206, '静态资源回退状态码')
 assert.equal(await asset.text(), 'static asset fallback', '静态资源回退响应')
 
 console.log('✓ 已知路由返回 SSR 200')
-console.log('✓ Admin 独立新增与编辑路由返回 SSR 200')
+console.log('✓ 未授权 Admin 与独立编辑路由返回 HTTP 404')
 console.log('✓ 未知路由渲染现有 404 页并返回 HTTP 404')
 console.log('✓ /500 渲染现有 500 页并返回 HTTP 500')
 console.log('✓ SSR 异常渲染现有 500 页并返回 HTTP 500')

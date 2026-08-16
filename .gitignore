@@ -7,6 +7,9 @@ dist-ssr
 .vite
 .wrangler/
 .wrangler-dry-run/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 .workbuddy
 .vscode
 worker-configuration.d.ts

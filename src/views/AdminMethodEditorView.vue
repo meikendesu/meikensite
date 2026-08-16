@@ -5,6 +5,7 @@ import { adminApi, requireAdminSession } from '../data/adminApi'
 import CustomSelect from '../components/CustomSelect.vue'
 import IconPicker from '../components/IconPicker.vue'
 import type { SiteMethod, SiteMethodCategory } from '../types'
+import { beginPageLoading } from '../data/pageLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -39,6 +40,7 @@ function emptyMethod() {
 }
 
 async function loadEditor() {
+  const finishPageLoading = beginPageLoading()
   try {
     if (!(await requireAdminSession(router))) return
     const requestedCategory = Array.isArray(route.query.category) ? route.query.category[0] : route.query.category
@@ -57,6 +59,8 @@ async function loadEditor() {
   } catch (requestError) {
     error.value = requestError.message
     status.value = 'error'
+  } finally {
+    finishPageLoading()
   }
 }
 
@@ -79,7 +83,7 @@ onMounted(loadEditor)
 
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell admin-method-page">
-    <header class="admin-header">
+    <header v-if="status === 'ready'" class="admin-header">
       <div><p class="overline">METHOD EDITOR</p><h1>{{ isEditing ? '编辑方式' : '添加方式' }}</h1></div>
       <router-link class="work-btn" to="/admin"><i class="fa-solid fa-arrow-left"></i> 返回管理页</router-link>
     </header>

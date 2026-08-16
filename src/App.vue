@@ -3,6 +3,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import TabBar from './components/TabBar.vue'
 import { locale, t } from './i18n'
+import { finishInitialPageLoading, pageLoading } from './data/pageLoading'
 
 // 根组件：skip-link + 路由出口（带淡入淡出过渡）+ 全局底部导航。
 // TabBar 提到此处统一渲染，使每个视图保持单根节点（<transition> 要求单根）。
@@ -25,12 +26,20 @@ function onScroll() {
   lastScrollY = y
 }
 
-onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  window.requestAnimationFrame(() => window.setTimeout(finishInitialPageLoading, 160))
+})
 onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 </script>
 
 <template>
   <a class="skip-link" href="#main">{{ t('a11y.skip') }}</a>
+  <transition name="loader-fade">
+    <div v-if="pageLoading" class="page-loading" role="status" aria-live="polite" aria-label="页面加载中">
+      <span class="page-loading-ring" aria-hidden="true"></span>
+    </div>
+  </transition>
   <router-view v-slot="{ Component }">
     <transition name="fade" mode="out-in">
       <component :is="Component" :key="route.fullPath" />

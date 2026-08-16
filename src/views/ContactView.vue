@@ -3,6 +3,7 @@ import { computed, inject, onMounted, ref } from 'vue'
 import { t } from '../i18n'
 import { SiteMethodStoreKey } from '../data/siteMethods'
 import type { SiteMethod } from '../types'
+import { beginPageLoading } from '../data/pageLoading'
 
 const store = inject(SiteMethodStoreKey)
 const error = ref('')
@@ -22,7 +23,16 @@ async function copyValue(method: SiteMethod) {
   }
 }
 
-onMounted(() => store.loadMethods('contact').catch((requestError) => (error.value = requestError.message)))
+onMounted(async () => {
+  const finishPageLoading = beginPageLoading()
+  try {
+    await store.loadMethods('contact')
+  } catch (requestError) {
+    error.value = requestError instanceof Error ? requestError.message : '联系方式加载失败。'
+  } finally {
+    finishPageLoading()
+  }
+})
 </script>
 
 <template>

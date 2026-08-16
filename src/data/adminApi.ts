@@ -31,7 +31,7 @@ export async function requireAdminSession(router: Router): Promise<AdminSession 
     }
     return session
   } catch (error) {
-    if (error instanceof AdminApiError && error.status === 401) {
+    if (error instanceof AdminApiError && (error.status === 401 || error.status === 404)) {
       await router.replace('/admin')
       return null
     }

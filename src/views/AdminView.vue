@@ -2,11 +2,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi } from '../data/adminApi'
+import { beginPageLoading } from '../data/pageLoading'
 import type { AdminSession, Project, SiteMethod, SiteMethodCategory } from '../types'
 
 const route = useRoute()
 const router = useRouter()
-const status = ref<'loading' | 'login' | 'change-password' | 'ready' | 'error'>('loading')
+const status = ref<'loading' | 'hidden' | 'login' | 'change-password' | 'ready' | 'error'>('loading')
 const message = ref('')
 const error = ref('')
 const projects = ref<Project[]>([])
@@ -25,8 +26,13 @@ async function checkSession() {
     status.value = data.mustChangePassword ? 'change-password' : 'ready'
     if (!data.mustChangePassword) await loadAdminData()
   } catch (requestError) {
-    status.value = requestError.status === 401 ? 'login' : 'error'
-    error.value = requestError.status === 401 ? '' : requestError.message
+    if (requestError.status === 404) {
+      status.value = 'hidden'
+      error.value = ''
+    } else {
+      status.value = requestError.status === 401 ? 'login' : 'error'
+      error.value = requestError.status === 401 ? '' : requestError.message
+    }
   }
 }
 
@@ -163,7 +169,7 @@ function endMethodDrag() {
 
 async function logout() {
   await adminApi('/api/admin/logout', { method: 'POST', body: '{}' })
-  status.value = 'login'
+  status.value = 'hidden'
   projects.value = []
   siteMethods.value = []
   clearMessages()
@@ -175,16 +181,33 @@ function clearMessages() {
 }
 
 onMounted(async () => {
+  const finishPageLoading = beginPageLoading()
   if (route.query.saved === 'project') message.value = '项目已保存。'
   if (route.query.saved === 'method') message.value = '方式已保存。'
-  await checkSession()
-  if (route.query.saved) router.replace('/admin')
+  if (route.query.saved === 'about') message.value = '关于页面内容已保存。'
+  try {
+    const accessKey = new URLSearchParams(window.location.hash.slice(1)).get('access')
+    if (accessKey) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+      await adminApi('/api/admin/access', {
+        method: 'POST',
+        body: JSON.stringify({ key: accessKey })
+      })
+    }
+    await checkSession()
+    if (route.query.saved) await router.replace('/admin')
+  } catch {
+    status.value = 'hidden'
+    error.value = ''
+  } finally {
+    finishPageLoading()
+  }
 })
 </script>
 
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell">
-    <header class="admin-header">
+    <header v-if="status !== 'hidden' && status !== 'loading'" class="admin-header">
       <div><p class="overline">ADMIN</p><h1>站点内容管理</h1></div>
       <div class="admin-header-actions">
         <router-link class="work-btn" to="/projects">查看项目页</router-link>
@@ -192,7 +215,13 @@ onMounted(async () => {
       </div>
     </header>
 
-    <p v-if="status === 'loading'" class="form-message">正在检查登录状态…</p>
+    <section v-if="status === 'hidden'" class="error-box admin-hidden-error">
+      <p class="error-code">404</p>
+      <h1>页面不存在</h1>
+      <p class="error-desc">你要找的页面可能已被移动、删除，或者地址输入有误。</p>
+      <router-link class="error-home" to="/">返回首页</router-link>
+    </section>
+    <p v-else-if="status === 'loading'" class="form-message">正在检查登录状态…</p>
     <p v-else-if="status === 'error'" class="form-message error" role="alert">{{ error }}</p>
 
     <form v-else-if="status === 'login'" class="admin-panel auth-panel" @submit.prevent="login">
@@ -214,12 +243,18 @@ onMounted(async () => {
     <template v-else-if="status === 'ready'">
       <section class="admin-panel">
         <div class="admin-section-title">
+          <div><h2>关于页面</h2><p class="admin-help">管理四种语言的标题、自我介绍和个人信息条目。</p></div>
+          <router-link class="work-btn" to="/admin/about">编辑关于页面</router-link>
+        </div>
+      </section>
+      <section class="admin-panel">
+        <div class="admin-section-title">
           <h2>项目文章</h2>
           <router-link class="work-btn" to="/admin/projects/new">新建项目</router-link>
         </div>
         <div v-if="projects.length" class="admin-project-list">
           <article v-for="project in projects" :key="project.id">
-            <div><strong>{{ project.name }}</strong><small>{{ project.slug }} · {{ project.published ? '已发布' : '草稿' }}</small></div>
+            <div><strong>{{ project.name }}</strong><small>{{ project.slug }} · {{ project.published ? '已发布' : '草稿' }} · 发布 {{ project.publishedAt }} · 更新 {{ project.updatedAt }}</small></div>
             <div class="admin-list-actions">
               <router-link :to="`/admin/projects/${project.id}/edit`">编辑</router-link>
               <button class="danger" type="button" @click="deleteProject(project)">删除</button>

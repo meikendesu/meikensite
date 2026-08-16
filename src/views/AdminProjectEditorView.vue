@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { adminApi, requireAdminSession } from '../data/adminApi'
 import CustomSelect from '../components/CustomSelect.vue'
 import type { Project } from '../types'
+import { beginPageLoading } from '../data/pageLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,7 +13,18 @@ const status = ref('loading')
 const error = ref('')
 const markdownInput = ref(null)
 const headingLevel = ref('')
-const editor = reactive({ id: null, slug: '', tag: '', title: '', description: '', markdown: '', published: false })
+const today = new Date().toISOString().slice(0, 10)
+const editor = reactive({
+  id: null as number | null,
+  slug: '',
+  tag: '',
+  title: '',
+  description: '',
+  markdown: '',
+  published: false,
+  publishedAt: today,
+  updatedAt: today
+})
 const md = new MarkdownIt({ html: false, linkify: true })
 const preview = computed(() => md.render(editor.markdown || ''))
 const isEditing = computed(() => Boolean(route.params.id))
@@ -23,6 +35,7 @@ const headingOptions = [
 ]
 
 async function loadEditor() {
+  const finishPageLoading = beginPageLoading()
   try {
     if (!(await requireAdminSession(router))) return
     if (isEditing.value) {
@@ -38,18 +51,26 @@ async function loadEditor() {
         title: project.name,
         description: project.desc,
         markdown: project.markdown,
-        published: project.published
+        published: project.published,
+        publishedAt: project.publishedAt,
+        updatedAt: project.updatedAt
       })
     }
     status.value = 'ready'
   } catch (requestError) {
     error.value = requestError.message
     status.value = 'error'
+  } finally {
+    finishPageLoading()
   }
 }
 
 async function saveProject() {
   error.value = ''
+  if (editor.updatedAt < editor.publishedAt) {
+    error.value = '更新日期不能早于发布日期。'
+    return
+  }
   try {
     await adminApi('/api/admin/projects', { method: 'POST', body: JSON.stringify(editor) })
     await router.push({ path: '/admin', query: { saved: 'project' } })
@@ -125,7 +146,7 @@ onMounted(loadEditor)
 
 <template>
   <main id="main" tabindex="-1" class="shell page-shell admin-shell admin-editor-page">
-    <header class="admin-header">
+    <header v-if="status === 'ready'" class="admin-header">
       <div><p class="overline">PROJECT EDITOR</p><h1>{{ isEditing ? '编辑项目' : '新建项目' }}</h1></div>
       <router-link class="work-btn" to="/admin"><i class="fa-solid fa-arrow-left"></i> 返回管理页</router-link>
     </header>
@@ -141,6 +162,8 @@ onMounted(loadEditor)
         <label>标题<input v-model="editor.title" maxlength="120" required /></label>
         <label>Slug<input v-model="editor.slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="my-project" required /></label>
         <label>分类标签<input v-model="editor.tag" maxlength="80" /></label>
+        <label>发布日期<input v-model="editor.publishedAt" type="date" required /></label>
+        <label>更新日期<input v-model="editor.updatedAt" type="date" required /></label>
         <label class="admin-published"><input v-model="editor.published" type="checkbox" /> 公开发布</label>
       </div>
       <label>简介<textarea v-model="editor.description" maxlength="500" rows="3"></textarea></label>

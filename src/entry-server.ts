@@ -1,7 +1,7 @@
 import { renderToString } from 'vue/server-renderer'
 import { createApp } from './app'
 import { initLocale, locale } from './i18n'
-import type { Project, SiteMethod, SiteMethodCategory } from './types'
+import type { AboutContent, AboutFact, Project, ProjectPagination, SiteMethod, SiteMethodCategory } from './types'
 
 interface ProjectRow {
   id: number
@@ -11,7 +11,20 @@ interface ProjectRow {
   desc: string
   markdown: string
   published: number
+  publishedAt: string
   createdAt: string
+  updatedAt: string
+}
+
+interface AboutContentRow {
+  locale: AboutContent['locale']
+  heroTitleLine1: string
+  heroTitleLine2: string
+  heroCopy: string
+  introHeading: string
+  introParagraph1: string
+  introParagraph2: string
+  factsJson: string
   updatedAt: string
 }
 
@@ -21,27 +34,61 @@ interface SiteMethodRow extends Omit<SiteMethod, 'qrEnabled' | 'enabled'> {
 }
 
 // 服务端入口：按请求 URL 渲染对应页面为 HTML 字符串
-async function loadInitialProjects(url: string, env?: Env): Promise<Project[]> {
-  if (!env?.DB) return []
+async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: Project[]; pagination: ProjectPagination }> {
+  const empty = { projects: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 } }
+  if (!env?.DB) return empty
   const pathname = new URL(url, 'https://example.invalid').pathname
   if (pathname === '/projects') {
-    const result = await env.DB.prepare(
+    const [result, countRow] = await Promise.all([
+      env.DB.prepare(
       `SELECT id, slug, tag, title AS name, description AS desc, markdown,
-        is_published AS published, created_at AS createdAt, updated_at AS updatedAt
-       FROM projects WHERE is_published = 1 ORDER BY updated_at DESC, id DESC`
-    ).all<ProjectRow>()
-    return result.results.map((project) => ({ ...project, published: Boolean(project.published) }))
+        is_published AS published, published_at AS publishedAt,
+        created_at AS createdAt, updated_at AS updatedAt
+       FROM projects WHERE is_published = 1
+       ORDER BY published_at DESC, updated_at DESC, id DESC LIMIT 10`
+      ).all<ProjectRow>(),
+      env.DB.prepare('SELECT COUNT(*) AS count FROM projects WHERE is_published = 1').first<{ count: number }>()
+    ])
+    const total = Number(countRow?.count || 0)
+    return {
+      projects: result.results.map((project) => ({ ...project, published: Boolean(project.published) })),
+      pagination: { page: 1, pageSize: 10, total, totalPages: Math.max(1, Math.ceil(total / 10)) }
+    }
   }
   if (pathname.startsWith('/projects/')) {
     const slug = decodeURIComponent(pathname.slice('/projects/'.length))
     const row = await env.DB.prepare(
       `SELECT id, slug, tag, title AS name, description AS desc, markdown,
-        is_published AS published, created_at AS createdAt, updated_at AS updatedAt
+        is_published AS published, published_at AS publishedAt,
+        created_at AS createdAt, updated_at AS updatedAt
        FROM projects WHERE slug = ? AND is_published = 1`
     ).bind(slug).first<ProjectRow>()
-    return row ? [{ ...row, published: Boolean(row.published) }] : []
+    return { ...empty, projects: row ? [{ ...row, published: Boolean(row.published) }] : [] }
   }
-  return []
+  return empty
+}
+
+function parseFacts(value: string): AboutFact[] {
+  try {
+    const facts = JSON.parse(value)
+    return Array.isArray(facts) ? facts : []
+  } catch {
+    return []
+  }
+}
+
+async function loadInitialAbout(url: string, env?: Env): Promise<AboutContent | null> {
+  if (!env?.DB || new URL(url, 'https://example.invalid').pathname !== '/about') return null
+  const row = await env.DB.prepare(
+    `SELECT locale, hero_title_line_1 AS heroTitleLine1, hero_title_line_2 AS heroTitleLine2,
+      hero_copy AS heroCopy, intro_heading AS introHeading,
+      intro_paragraph_1 AS introParagraph1, intro_paragraph_2 AS introParagraph2,
+      facts_json AS factsJson, updated_at AS updatedAt
+     FROM about_content WHERE locale = ?`
+  ).bind(locale.value).first<AboutContentRow>()
+  if (!row) return null
+  const { factsJson, ...content } = row
+  return { ...content, facts: parseFacts(factsJson) }
 }
 
 async function loadInitialSiteMethods(url: string, env?: Env): Promise<SiteMethod[]> {
@@ -66,13 +113,22 @@ export async function render(url: string, request?: Request, env?: Env) {
   // 服务端根据 Accept-Language 确定初始语言
   initLocale(request?.headers?.get?.('accept-language'))
 
-  const projects = await loadInitialProjects(url, env)
-  const siteMethods = await loadInitialSiteMethods(url, env)
-  const { app, router } = createApp({ url, initialProjects: projects, initialSiteMethods: siteMethods })
+  const [{ projects, pagination: projectPagination }, siteMethods, aboutContent] = await Promise.all([
+    loadInitialProjects(url, env),
+    loadInitialSiteMethods(url, env),
+    loadInitialAbout(url, env)
+  ])
+  const { app, router } = createApp({
+    url,
+    initialProjects: projects,
+    initialProjectPagination: projectPagination,
+    initialSiteMethods: siteMethods,
+    initialAboutContent: aboutContent
+  })
   await router.push(url)
   await router.isReady()
 
   const html = await renderToString(app)
   const status = Number(router.currentRoute.value.meta?.code) || 200
-  return { html, locale: locale.value, projects, siteMethods, status }
+  return { html, locale: locale.value, projects, projectPagination, siteMethods, aboutContent, status }
 }

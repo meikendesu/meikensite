@@ -3,6 +3,7 @@ import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { t } from '../i18n'
 import { SiteMethodStoreKey } from '../data/siteMethods'
 import type { SiteMethod } from '../types'
+import { beginPageLoading } from '../data/pageLoading'
 
 const store = inject(SiteMethodStoreKey)
 const methods = computed(() => store.methods.value.filter((method) => method.category === 'donation'))
@@ -35,7 +36,16 @@ async function useMethod(method: SiteMethod) {
   }
 }
 
-onMounted(() => store.loadMethods('donation').catch((requestError) => showNote(requestError.message)))
+onMounted(async () => {
+  const finishPageLoading = beginPageLoading()
+  try {
+    await store.loadMethods('donation')
+  } catch (requestError) {
+    showNote(requestError instanceof Error ? requestError.message : '捐助方式加载失败。')
+  } finally {
+    finishPageLoading()
+  }
+})
 onBeforeUnmount(() => {
   if (timer) clearTimeout(timer)
 })

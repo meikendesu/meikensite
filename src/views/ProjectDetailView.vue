@@ -5,6 +5,7 @@ import MarkdownIt from 'markdown-it'
 import PageHeader from '../components/PageHeader.vue'
 import { t } from '../i18n'
 import { ProjectStoreKey } from '../data/projects'
+import { beginPageLoading } from '../data/pageLoading'
 
 const route = useRoute()
 const projectStore = inject(ProjectStoreKey)
@@ -15,12 +16,14 @@ const project = computed(() => projectStore.getProjectBySlug(slug.value))
 
 onMounted(async () => {
   if (project.value) return
+  const finishPageLoading = beginPageLoading()
   try {
     await projectStore.loadProject(slug.value)
   } catch (error) {
-    loadError.value = error.message
+    loadError.value = error instanceof Error ? error.message : '项目详情加载失败。'
   } finally {
     loading.value = false
+    finishPageLoading()
   }
 })
 
@@ -42,6 +45,7 @@ const rendered = computed(() => (project.value ? md.render(project.value.markdow
       <section class="page-hero compact">
         <p class="overline">{{ project.tag }}</p>
         <h1>{{ project.name }}</h1>
+        <p class="hero-copy">{{ t('projects.publishedAt') }} {{ project.publishedAt }} · {{ t('projects.updatedAt') }} {{ project.updatedAt }}</p>
       </section>
       <article class="markdown-body" v-html="rendered"></article>
       <div class="detail-actions">

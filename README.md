@@ -1,6 +1,6 @@
 # MEIKEN · Vue 3 + Vite SSR
 
-Vue 3 + Cloudflare Workers SSR 个人站。项目文章和管理员认证数据存储在 Cloudflare D1。
+Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和管理员认证数据存储在 Cloudflare D1。
 
 ## 技术栈
 
@@ -53,11 +53,12 @@ npm run dev:worker          # 构建并启动完整 Worker + D1 环境
 | --- | --- |
 | `/` | 首页 |
 | `/about` | 关于 |
-| `/projects` | 已发布项目列表 |
+| `/projects` | 已发布项目列表，每页 10 条 |
 | `/projects/:slug` | Markdown 项目详情 |
 | `/contact` | 联系方式 |
 | `/support` | USDT、ETH、BTC、PayPal 捐助方式 |
-| `/admin` | 管理员登录与项目发布 |
+| `/admin` | 私有管理员入口；未授权访问返回 HTTP 404 |
+| `/admin/about` | 四语言关于页面内容编辑 |
 | `/admin/projects/new` | 独立的项目与 Markdown 新建页面 |
 | `/admin/projects/:id/edit` | 独立的项目与 Markdown 编辑页面 |
 | `/admin/methods/new` | 独立的联系方式/捐助方式添加页面 |
@@ -70,18 +71,28 @@ npm run dev:worker          # 构建并启动完整 Worker + D1 环境
 ```bash
 npm install
 npm run db:migrate:local
+Copy-Item .dev.vars.example .dev.vars # Windows PowerShell
 npm run dev:worker
 ```
 
-打开 `http://127.0.0.1:8787/admin`：
+先把 `.dev.vars` 中的 `ADMIN_ENTRY_KEY` 换成长随机值，再打开：
+
+```text
+http://127.0.0.1:8787/admin#access=你的ADMIN_ENTRY_KEY
+```
+
+URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小时的 `HttpOnly` 门禁 Cookie，并立即从地址栏清除片段。直接访问 `/admin`、后台子路径或后台 API 会返回 404。
+
+进入登录页后：
 
 1. 使用初始密码 `123456` 登录。
 2. 首次登录会被强制要求设置至少 8 个字符的新密码。
-3. 新建或编辑项目会进入独立页面；内置 Markdown 工具栏支持标题、粗体、斜体、链接、列表、引用和代码，并同步显示实时预览。
+3. 新建或编辑项目必须填写发布日期和更新日期；内置 Markdown 工具栏支持标题、粗体、斜体、链接、列表、引用和代码，并同步显示实时预览。
 4. 勾选“公开发布”后保存，文章会出现在 `/projects`。
 5. 联系方式和捐助方式在两个独立分组中管理；使用每张卡片左侧把手，只能在当前分组内拖动排序。
 6. 方式编辑页可搜索并选择 Font Awesome 的全部免费图标，自定义下拉框不会调用浏览器原生弹层，表单下方会实时预览公开页面效果。
 7. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
+8. 关于页面编辑器可分别维护简体中文、繁体中文、英语和日语的标题、自我介绍与个人信息条目。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
 
@@ -105,14 +116,23 @@ npx wrangler d1 create meikensite-db
 }
 ```
 
-初始化生产表并部署：
+初始化生产表、设置私有入口密钥并部署：
 
 ```bash
 npm run db:migrate:remote
+npx wrangler secret put ADMIN_ENTRY_KEY
 npm run deploy
 ```
 
-`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表，并写入当前页面使用的初始数据。生产站首次访问 `/admin` 时仍使用 `123456`，登录后必须立刻修改。
+`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面四语言内容以及项目发布日期字段。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
+
+生产私有入口格式如下，请勿公开或提交真实密钥：
+
+```text
+https://你的域名/admin#access=你的ADMIN_ENTRY_KEY
+```
+
+所有页面在客户端路由与异步条目加载期间显示圆环占位，加载完成后自动隐藏。
 
 备份生产文章：
 
