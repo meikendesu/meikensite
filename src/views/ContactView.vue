@@ -1,19 +1,20 @@
-<script setup>
+<script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue'
-import { t } from '../i18n/index.js'
-import { SiteMethodStoreKey } from '../data/siteMethods.js'
+import { t } from '../i18n'
+import { SiteMethodStoreKey } from '../data/siteMethods'
+import type { SiteMethod } from '../types'
 
 const store = inject(SiteMethodStoreKey)
 const error = ref('')
 const methods = computed(() => store.methods.value.filter((method) => method.category === 'contact'))
 
-function methodHref(method) {
+function methodHref(method: SiteMethod) {
   if (method.actionType === 'email') return `mailto:${method.value}`
   if (method.actionType === 'link') return method.value
   return null
 }
 
-async function copyValue(method) {
+async function copyValue(method: SiteMethod) {
   try {
     await navigator.clipboard.writeText(method.value)
   } catch {

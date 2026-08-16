@@ -1,15 +1,23 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-const props = defineProps({
-  modelValue: { type: [String, Number], default: '' },
-  options: { type: Array, required: true },
-  placeholder: { type: String, default: '请选择' },
-  ariaLabel: { type: String, default: '选择选项' },
-  disabled: { type: Boolean, default: false }
+type SelectValue = string | number
+interface SelectOption { value: SelectValue; label: string; icon?: string }
+
+const props = withDefaults(defineProps<{
+  modelValue?: SelectValue
+  options: SelectOption[]
+  placeholder?: string
+  ariaLabel?: string
+  disabled?: boolean
+}>(), {
+  modelValue: '',
+  placeholder: '请选择',
+  ariaLabel: '选择选项',
+  disabled: false
 })
-const emit = defineEmits(['update:modelValue'])
-const root = ref(null)
+const emit = defineEmits<{ 'update:modelValue': [value: SelectValue] }>()
+const root = ref<HTMLElement | null>(null)
 const open = ref(false)
 const selected = computed(() => props.options.find((option) => option.value === props.modelValue))
 
@@ -17,16 +25,16 @@ function toggle() {
   if (!props.disabled) open.value = !open.value
 }
 
-function choose(value) {
+function choose(value: SelectValue) {
   emit('update:modelValue', value)
   open.value = false
 }
 
-function closeOnOutside(event) {
-  if (!root.value?.contains(event.target)) open.value = false
+function closeOnOutside(event: PointerEvent) {
+  if (!root.value?.contains(event.target as Node)) open.value = false
 }
 
-function closeOnEscape(event) {
+function closeOnEscape(event: KeyboardEvent) {
   if (event.key === 'Escape') open.value = false
 }
 

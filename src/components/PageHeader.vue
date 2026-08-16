@@ -1,5 +1,5 @@
-<script setup>
-import { t } from '../i18n/index.js'
+<script setup lang="ts">
+import { t } from '../i18n'
 
 // 子页顶部栏：返回按钮 + 页面标题 + 头像入口
 defineProps({

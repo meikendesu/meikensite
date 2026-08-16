@@ -1,7 +1,10 @@
 import { ref } from 'vue'
+import type { Locale } from '../types'
+
+type MessageTree = { [key: string]: string | MessageTree }
 
 // 多语言文案字典：简体中文 / 繁体中文 / 英语 / 日语
-export const messages = {
+export const messages: Record<Locale, MessageTree> = {
   'zh-CN': {
     nav: { home: '首页', about: '关于', projects: '项目', contact: '联系', support: '捐助' },
     a11y: { skip: '跳到主要内容' },
@@ -246,7 +249,11 @@ export const messages = {
 const STORAGE_KEY = 'meiken-locale'
 
 // 从语言字符串（浏览器 language 或 Accept-Language 头）推断 locale
-function resolveLocale(lang) {
+function isLocale(value: string): value is Locale {
+  return value in messages
+}
+
+function resolveLocale(lang?: string | null): Locale {
   if (!lang) return 'zh-CN'
   const l = String(lang).toLowerCase()
   if (l.startsWith('zh')) {
@@ -258,10 +265,10 @@ function resolveLocale(lang) {
 }
 
 // SSR 安全：客户端优先读 localStorage / navigator，服务端无这些全局对象
-function detectLocale() {
+function detectLocale(): Locale {
   if (typeof localStorage !== 'undefined') {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved && messages[saved]) return saved
+    if (saved && isLocale(saved)) return saved
   }
   if (typeof navigator !== 'undefined' && navigator.language) {
     return resolveLocale(navigator.language)
@@ -269,27 +276,28 @@ function detectLocale() {
   return 'zh-CN'
 }
 
-export const locale = ref(detectLocale())
+export const locale = ref<Locale>(detectLocale())
 
 // SSR 时根据请求的 Accept-Language 头设置初始语言（避免 hydration 不一致）
-export function initLocale(acceptLanguage) {
+export function initLocale(acceptLanguage?: string | null) {
   if (!acceptLanguage) return
   locale.value = resolveLocale(acceptLanguage.split(',')[0])
 }
 
-export function t(key) {
-  const dict = messages[locale.value] || messages['zh-CN']
-  const val = key.split('.').reduce((o, k) => (o == null ? o : o[k]), dict)
-  return val ?? key
+export function t(key: string): string {
+  let value: string | MessageTree | undefined = messages[locale.value]
+  for (const segment of key.split('.')) {
+    value = typeof value === 'object' ? value[segment] : undefined
+  }
+  return typeof value === 'string' ? value : key
 }
 
-export function setLocale(l) {
-  if (!messages[l]) return
-  locale.value = l
+export function setLocale(value: Locale) {
+  locale.value = value
   if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, l)
+    localStorage.setItem(STORAGE_KEY, value)
   }
   if (typeof document !== 'undefined') {
-    document.documentElement.lang = l
+    document.documentElement.lang = value
   }
 }

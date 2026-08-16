@@ -10,7 +10,14 @@ const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 const MAX_JSON_BYTES = 512 * 1024
 const encoder = new TextEncoder()
 
-function json(data, status = 200, headers = {}) {
+interface AdminRow {
+  password_hash: string
+  password_salt: string
+  password_iterations: number
+  must_change_password?: number
+}
+
+function json(data: unknown, status = 200, headers: HeadersInit = {}) {
   return Response.json(data, {
     status,
     headers: { 'cache-control': 'no-store', ...headers }
@@ -96,7 +103,7 @@ function assertSameOrigin(request) {
   return !origin || origin === new URL(request.url).origin
 }
 
-async function readJson(request) {
+async function readJson(request: Request): Promise<Record<string, unknown>> {
   const contentLength = Number(request.headers.get('content-length') || 0)
   if (contentLength > MAX_JSON_BYTES) throw new Error('PAYLOAD_TOO_LARGE')
   if (!request.body) return {}
@@ -173,7 +180,7 @@ async function listSiteMethods(db, category, includeDisabled = false) {
   return result.results.map(normalizeSiteMethod)
 }
 
-function validateSiteMethod(body) {
+function validateSiteMethod(body: Record<string, unknown>) {
   const method = {
     id: body.id ? Number(body.id) : null,
     category: String(body.category || '').trim(),
@@ -213,7 +220,7 @@ function validateSiteMethod(body) {
   return { method }
 }
 
-async function handleApi(request, env, pathname) {
+async function handleApi(request: Request, env: Env, pathname: string) {
   if (!env.DB) return json({ error: 'D1 数据库尚未绑定。' }, 503)
 
   if (request.method === 'GET' && pathname === '/api/site-methods') {
@@ -229,7 +236,7 @@ async function handleApi(request, env, pathname) {
       `SELECT value FROM site_methods
        WHERE id = ? AND category = 'donation' AND action_type = 'crypto'
          AND qr_enabled = 1 AND is_enabled = 1`
-    ).bind(Number(qrMatch[1])).first()
+    ).bind(Number(qrMatch[1])).first<{ value: string }>()
     if (!row) return json({ error: '二维码不存在。' }, 404)
     const svg = await QRCode.toString(row.value, { type: 'svg', errorCorrectionLevel: 'M', margin: 2, width: 512 })
     return new Response(svg, {
@@ -270,7 +277,7 @@ async function handleApi(request, env, pathname) {
     if (Number(attempts?.count || 0) >= 8) return json({ error: '登录尝试过多，请 15 分钟后再试。' }, 429)
     const admin = await env.DB.prepare(
       'SELECT password_hash, password_salt, password_iterations, must_change_password FROM admin_users WHERE id = 1'
-    ).first()
+    ).first<AdminRow>()
     const candidate = await hashPassword(String(password), admin.password_salt, admin.password_iterations)
     if (!constantTimeEqual(candidate, admin.password_hash)) {
       await env.DB.prepare('INSERT INTO admin_login_attempts (ip_hash) VALUES (?)').bind(ipHash).run()
@@ -310,7 +317,7 @@ async function handleApi(request, env, pathname) {
     if (String(newPassword).length < 8) return json({ error: '新密码至少需要 8 个字符。' }, 400)
     const admin = await env.DB.prepare(
       'SELECT password_hash, password_salt, password_iterations FROM admin_users WHERE id = 1'
-    ).first()
+    ).first<AdminRow>()
     const currentHash = await hashPassword(String(currentPassword), admin.password_salt, admin.password_iterations)
     if (!constantTimeEqual(currentHash, admin.password_hash)) return json({ error: '当前密码错误。' }, 401)
 
@@ -343,11 +350,11 @@ async function handleApi(request, env, pathname) {
   if (request.method === 'POST' && pathname === '/api/admin/site-methods/reorder') {
     const body = await readJson(request)
     const category = String(body.category || '')
-    const orderedIds = Array.isArray(body.orderedIds) ? body.orderedIds.map(Number) : []
+    const orderedIds: number[] = Array.isArray(body.orderedIds) ? body.orderedIds.map(Number) : []
     if (!['contact', 'donation'].includes(category) || !orderedIds.length || orderedIds.length > 200 || orderedIds.some((id) => !Number.isInteger(id) || id < 1)) {
       return json({ error: '排序数据无效。' }, 400)
     }
-    const existing = await env.DB.prepare('SELECT id FROM site_methods WHERE category = ? ORDER BY id').bind(category).all()
+    const existing = await env.DB.prepare('SELECT id FROM site_methods WHERE category = ? ORDER BY id').bind(category).all<{ id: number }>()
     const existingIds = existing.results.map((row) => Number(row.id)).sort((a, b) => a - b)
     const submittedIds = [...new Set(orderedIds)].sort((a, b) => a - b)
     if (existingIds.length !== submittedIds.length || existingIds.some((id, index) => id !== submittedIds[index])) {
@@ -431,7 +438,7 @@ async function handleApi(request, env, pathname) {
   return json({ error: '接口不存在。' }, 404)
 }
 
-async function renderPage(renderUrl, request, env, origin, statusOverride) {
+async function renderPage(renderUrl: string, request: Request, env: Env, origin: string, statusOverride?: number) {
   const rendered = await render(renderUrl, request, env)
   const templateRes = await env.ASSETS.fetch(new Request(new URL('/index.html', origin)))
   if (!templateRes.ok) throw new Error(`SSR_TEMPLATE_${templateRes.status}`)
@@ -450,7 +457,7 @@ async function renderPage(renderUrl, request, env, origin, statusOverride) {
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     const pathname = url.pathname
 

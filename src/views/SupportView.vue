@@ -1,23 +1,24 @@
-<script setup>
+<script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
-import { t } from '../i18n/index.js'
-import { SiteMethodStoreKey } from '../data/siteMethods.js'
+import { t } from '../i18n'
+import { SiteMethodStoreKey } from '../data/siteMethods'
+import type { SiteMethod } from '../types'
 
 const store = inject(SiteMethodStoreKey)
 const methods = computed(() => store.methods.value.filter((method) => method.category === 'donation'))
 const note = ref('')
 const show = ref(false)
-const activeQr = ref(null)
-let timer = null
+const activeQr = ref<SiteMethod | null>(null)
+let timer: ReturnType<typeof setTimeout> | undefined
 
-function showNote(message) {
+function showNote(message: string) {
   note.value = message
   show.value = true
-  clearTimeout(timer)
+  if (timer) clearTimeout(timer)
   timer = setTimeout(() => (show.value = false), 3200)
 }
 
-async function useMethod(method) {
+async function useMethod(method: SiteMethod) {
   if (method.value.includes('待填写')) {
     showNote(`${method.name} 收款信息尚未填写。`)
     return
@@ -35,7 +36,9 @@ async function useMethod(method) {
 }
 
 onMounted(() => store.loadMethods('donation').catch((requestError) => showNote(requestError.message)))
-onBeforeUnmount(() => clearTimeout(timer))
+onBeforeUnmount(() => {
+  if (timer) clearTimeout(timer)
+})
 </script>
 
 <template>

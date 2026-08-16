@@ -1,14 +1,21 @@
 import { createSSRApp } from 'vue'
 import { createMemoryHistory, createWebHistory } from 'vue-router'
 import App from './App.vue'
-import { createAppRouter } from './router.js'
+import { createAppRouter } from './router'
 import PageHeader from './components/PageHeader.vue'
-import { createProjectStore, ProjectStoreKey } from './data/projects.js'
-import { createSiteMethodStore, SiteMethodStoreKey } from './data/siteMethods.js'
+import { createProjectStore, ProjectStoreKey } from './data/projects'
+import { createSiteMethodStore, SiteMethodStoreKey } from './data/siteMethods'
+import type { Project, SiteMethod } from './types'
+
+interface CreateAppOptions {
+  url?: string
+  initialProjects?: Project[]
+  initialSiteMethods?: SiteMethod[]
+}
 
 // 共享 App 工厂：服务端（SSR）与客户端（hydration）共用
 // 传入 url 表示服务端渲染（memory history），否则为客户端（web history）
-export function createApp({ url, initialProjects = [], initialSiteMethods = [] } = {}) {
+export function createApp({ url, initialProjects = [], initialSiteMethods = [] }: CreateAppOptions = {}) {
   const app = createSSRApp(App)
   app.component('PageHeader', PageHeader)
   app.provide(ProjectStoreKey, createProjectStore(initialProjects))

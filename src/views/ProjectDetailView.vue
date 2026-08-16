@@ -1,21 +1,22 @@
-<script setup>
+<script setup lang="ts">
 import { computed, inject, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import PageHeader from '../components/PageHeader.vue'
-import { t } from '../i18n/index.js'
-import { ProjectStoreKey } from '../data/projects.js'
+import { t } from '../i18n'
+import { ProjectStoreKey } from '../data/projects'
 
 const route = useRoute()
 const projectStore = inject(ProjectStoreKey)
-const loading = ref(!projectStore.getProjectBySlug(route.params.id))
+const slug = computed(() => String(Array.isArray(route.params.id) ? route.params.id[0] : route.params.id || ''))
+const loading = ref(!projectStore.getProjectBySlug(slug.value))
 const loadError = ref('')
-const project = computed(() => projectStore.getProjectBySlug(route.params.id))
+const project = computed(() => projectStore.getProjectBySlug(slug.value))
 
 onMounted(async () => {
   if (project.value) return
   try {
-    await projectStore.loadProject(route.params.id)
+    await projectStore.loadProject(slug.value)
   } catch (error) {
     loadError.value = error.message
   } finally {

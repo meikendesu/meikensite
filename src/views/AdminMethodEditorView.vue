@@ -1,9 +1,10 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { adminApi, requireAdminSession } from '../data/adminApi.js'
+import { adminApi, requireAdminSession } from '../data/adminApi'
 import CustomSelect from '../components/CustomSelect.vue'
 import IconPicker from '../components/IconPicker.vue'
+import type { SiteMethod, SiteMethodCategory } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,11 +41,14 @@ function emptyMethod() {
 async function loadEditor() {
   try {
     if (!(await requireAdminSession(router))) return
-    if (!isEditing.value && ['contact', 'donation'].includes(route.query.category)) editor.category = route.query.category
+    const requestedCategory = Array.isArray(route.query.category) ? route.query.category[0] : route.query.category
+    if (!isEditing.value && (requestedCategory === 'contact' || requestedCategory === 'donation')) {
+      editor.category = requestedCategory as SiteMethodCategory
+    }
     if (isEditing.value) {
       const id = Number(route.params.id)
       if (!Number.isInteger(id) || id < 1) throw new Error('方式 ID 无效。')
-      const data = await adminApi('/api/admin/site-methods')
+      const data = await adminApi<{ methods: SiteMethod[] }>('/api/admin/site-methods')
       const method = (data.methods || []).find((item) => item.id === id)
       if (!method) throw new Error('方式不存在或已被删除。')
       Object.assign(editor, method)

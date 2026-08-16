@@ -8,3 +8,5 @@ dist-ssr
 .wrangler/
 .wrangler-dry-run/
 .workbuddy
+.vscode
+worker-configuration.d.ts

@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import TabBar from './components/TabBar.vue'
-import { locale, t } from './i18n/index.js'
+import { locale, t } from './i18n'
 
 // 根组件：skip-link + 路由出口（带淡入淡出过渡）+ 全局底部导航。
 // TabBar 提到此处统一渲染，使每个视图保持单根节点（<transition> 要求单根）。
@@ -10,7 +10,7 @@ const route = useRoute()
 
 // 语言切换时同步更新页面标题
 watch(locale, () => {
-  if (route.meta?.titleKey) document.title = t(route.meta.titleKey)
+  if (typeof route.meta?.titleKey === 'string') document.title = t(route.meta.titleKey)
 })
 
 // TabBar 滚动自动隐藏/显示：向下滚动隐藏，向上滚动显示
@@ -38,14 +38,3 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
   </router-view>
   <TabBar v-if="route.meta.tabbar" :class="{ 'tabbar-hidden': tabbarHidden }" />
 </template>
-
-<style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

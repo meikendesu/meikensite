@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import icons from '../data/freeFontAwesomeIcons.js'
+import icons from '../data/freeFontAwesomeIcons'
 
 const props = defineProps({ modelValue: { type: String, default: 'fa-solid fa-link' } })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const open = ref(false)
 const query = ref('')
 const visibleCount = ref(120)
-const searchInput = ref(null)
-const root = ref(null)
+const searchInput = ref<HTMLInputElement | null>(null)
+const root = ref<HTMLElement | null>(null)
 const selected = computed(() => icons.find(([className]) => className === props.modelValue))
 const filtered = computed(() => {
   const term = query.value.trim().toLowerCase()
@@ -27,16 +27,16 @@ async function toggle() {
   }
 }
 
-function choose(className) {
+function choose(className: string) {
   emit('update:modelValue', className)
   open.value = false
 }
 
-function closeOnOutside(event) {
-  if (!root.value?.contains(event.target)) open.value = false
+function closeOnOutside(event: PointerEvent) {
+  if (!root.value?.contains(event.target as Node)) open.value = false
 }
 
-function closeOnEscape(event) {
+function closeOnEscape(event: KeyboardEvent) {
   if (event.key === 'Escape') open.value = false
 }
 

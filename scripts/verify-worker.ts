@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import worker from '../worker.js'
+import worker from '../worker'
 
 const origin = 'https://local.test'
 const template = await readFile(new URL('../dist/client/index.html', import.meta.url), 'utf8')
@@ -26,8 +26,8 @@ const env = {
 async function request(pathname) {
   return worker.fetch(
     new Request(`${origin}${pathname}`, { headers: { 'accept-language': 'zh-CN' } }),
-    env,
-    {}
+    env as Env,
+    {} as ExecutionContext
   )
 }
 

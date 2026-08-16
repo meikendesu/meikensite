@@ -1,26 +1,27 @@
-<script setup>
+<script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { adminApi } from '../data/adminApi.js'
+import { adminApi } from '../data/adminApi'
+import type { AdminSession, Project, SiteMethod, SiteMethodCategory } from '../types'
 
 const route = useRoute()
 const router = useRouter()
-const status = ref('loading')
+const status = ref<'loading' | 'login' | 'change-password' | 'ready' | 'error'>('loading')
 const message = ref('')
 const error = ref('')
-const projects = ref([])
-const siteMethods = ref([])
+const projects = ref<Project[]>([])
+const siteMethods = ref<SiteMethod[]>([])
 const loginPassword = ref('')
 const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const methodGroups = [
   { category: 'contact', title: '联系方式', icon: 'fa-solid fa-address-book', empty: '暂无联系方式。' },
   { category: 'donation', title: '捐助方式', icon: 'fa-solid fa-hand-holding-heart', empty: '暂无捐助方式。' }
-]
-const dragState = reactive({ category: '', id: null, overId: null, saving: false })
+] as const
+const dragState = reactive<{ category: SiteMethodCategory | ''; id: number | null; overId: number | null; saving: boolean }>({ category: '', id: null, overId: null, saving: false })
 
 async function checkSession() {
   try {
-    const data = await adminApi('/api/admin/session')
+    const data = await adminApi<AdminSession>('/api/admin/session')
     status.value = data.mustChangePassword ? 'change-password' : 'ready'
     if (!data.mustChangePassword) await loadAdminData()
   } catch (requestError) {
@@ -32,7 +33,7 @@ async function checkSession() {
 async function login() {
   clearMessages()
   try {
-    const data = await adminApi('/api/admin/login', {
+    const data = await adminApi<AdminSession>('/api/admin/login', {
       method: 'POST',
       body: JSON.stringify({ password: loginPassword.value })
     })
@@ -69,14 +70,14 @@ async function changePassword() {
 
 async function loadAdminData() {
   const [projectData, methodData] = await Promise.all([
-    adminApi('/api/admin/projects'),
-    adminApi('/api/admin/site-methods')
+    adminApi<{ projects: Project[] }>('/api/admin/projects'),
+    adminApi<{ methods: SiteMethod[] }>('/api/admin/site-methods')
   ])
   projects.value = projectData.projects || []
   siteMethods.value = methodData.methods || []
 }
 
-async function deleteProject(project) {
+async function deleteProject(project: Project) {
   if (!window.confirm(`确定删除“${project.name}”吗？此操作不可撤销。`)) return
   clearMessages()
   try {
@@ -88,7 +89,7 @@ async function deleteProject(project) {
   }
 }
 
-async function deleteSiteMethod(method) {
+async function deleteSiteMethod(method: SiteMethod) {
   if (!window.confirm(`确定删除“${method.name}”吗？此操作不可撤销。`)) return
   clearMessages()
   try {
@@ -100,19 +101,21 @@ async function deleteSiteMethod(method) {
   }
 }
 
-function methodsFor(category) {
+function methodsFor(category: SiteMethodCategory) {
   return siteMethods.value.filter((method) => method.category === category)
 }
 
-function startMethodDrag(event, method) {
+function startMethodDrag(event: DragEvent, method: SiteMethod) {
   dragState.category = method.category
   dragState.id = method.id
   dragState.overId = method.id
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', String(method.id))
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(method.id))
+  }
 }
 
-async function dropMethod(category, targetId, event) {
+async function dropMethod(category: SiteMethodCategory, targetId: number | null, event: DragEvent) {
   if (dragState.saving || dragState.category !== category || !dragState.id) return
   if (targetId === dragState.id) {
     endMethodDrag()
@@ -129,7 +132,7 @@ async function dropMethod(category, targetId, event) {
     const targetIndex = reordered.findIndex((method) => method.id === targetId)
     if (targetIndex < 0) reordered.push(moved)
     else {
-      const rect = event.currentTarget.getBoundingClientRect()
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
       const insertAfter = event.clientY > rect.top + rect.height / 2
       reordered.splice(targetIndex + (insertAfter ? 1 : 0), 0, moved)
     }

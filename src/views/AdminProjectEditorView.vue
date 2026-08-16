@@ -1,9 +1,10 @@
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import { useRoute, useRouter } from 'vue-router'
-import { adminApi, requireAdminSession } from '../data/adminApi.js'
+import { adminApi, requireAdminSession } from '../data/adminApi'
 import CustomSelect from '../components/CustomSelect.vue'
+import type { Project } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,7 +28,7 @@ async function loadEditor() {
     if (isEditing.value) {
       const id = Number(route.params.id)
       if (!Number.isInteger(id) || id < 1) throw new Error('项目 ID 无效。')
-      const data = await adminApi('/api/admin/projects')
+      const data = await adminApi<{ projects: Project[] }>('/api/admin/projects')
       const project = (data.projects || []).find((item) => item.id === id)
       if (!project) throw new Error('项目不存在或已被删除。')
       Object.assign(editor, {

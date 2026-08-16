@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 // base: '/' —— history 路由需绝对路径；若部署到子目录需改为 '/子目录/'
 export default defineConfig(({ isSsrBuild }) => ({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   base: '/',
   build: {
     // 每次构建清理各自输出目录，避免旧哈希资源持续进入部署包。

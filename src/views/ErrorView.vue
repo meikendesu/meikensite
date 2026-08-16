@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { t } from '../i18n/index.js'
+import { t } from '../i18n'
 
 const route = useRoute()
 
-const KEY_MAP = {
+const KEY_MAP: Record<number, { title: string; desc: string }> = {
   404: { title: 'error.notFoundTitle', desc: 'error.notFoundDesc' },
   500: { title: 'error.serverTitle', desc: 'error.serverDesc' },
   403: { title: 'error.forbiddenTitle', desc: 'error.forbiddenDesc' }

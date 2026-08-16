@@ -1,6 +1,6 @@
-import { createRouter } from 'vue-router'
+import { createRouter, type RouterHistory } from 'vue-router'
 import HomeView from './views/HomeView.vue'
-import { t } from './i18n/index.js'
+import { t } from './i18n'
 
 // 使用 HTML5 history 路由（URL 无 #）。
 // 首页保持同步加载，其余视图按路由拆包，避免首屏下载 markdown-it 等详情页依赖。
@@ -21,7 +21,7 @@ const routes = [
 ]
 
 // 工厂函数：服务端传入 createMemoryHistory，客户端传入 createWebHistory
-export function createAppRouter(history) {
+export function createAppRouter(history: RouterHistory) {
   const router = createRouter({
     history,
     routes,
@@ -31,8 +31,8 @@ export function createAppRouter(history) {
   })
   router.afterEach((to) => {
     if (typeof document !== 'undefined') {
-      if (to.meta?.titleKey) document.title = t(to.meta.titleKey)
-      else if (to.meta?.title) document.title = to.meta.title
+      if (typeof to.meta?.titleKey === 'string') document.title = t(to.meta.titleKey)
+      else if (typeof to.meta?.title === 'string') document.title = to.meta.title
     }
   })
   return router

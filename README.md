@@ -4,7 +4,9 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章和管理员认证数据�
 
 ## 技术栈
 
-- Vue 3（`<script setup>`）
+- Vue 3（`<script setup lang="ts">`）
+- TypeScript 5.9（前端、SSR、构建脚本与 Cloudflare Worker）
+- Tailwind CSS 4（Vite 插件、CSS-first 设计令牌与组件层）
 - Vue Router 4（HTML5 history 路由）
 - Vite 6（客户端 + SSR 构建）
 - Cloudflare Workers + Assets
@@ -16,15 +18,16 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章和管理员认证数据�
 
 ```text
 meikensite/
-├── worker.js               # Worker SSR 与 API 入口
+├── worker.ts               # Worker SSR 与 API 入口
 ├── wrangler.jsonc          # Assets、D1 和日志配置
 ├── migrations/             # D1 数据库迁移（项目、联系方式、捐助方式）
 ├── src/
-│   ├── entry-client.js     # 浏览器 hydration 入口
-│   ├── entry-server.js     # SSR 入口
-│   ├── router.js           # 页面路由与按需拆包
-│   ├── data/projects.js    # 项目数据 store / API 客户端
-│   ├── data/freeFontAwesomeIcons.js # 构建前自动生成的免费图标目录
+│   ├── entry-client.ts     # 浏览器 hydration 入口
+│   ├── entry-server.ts     # SSR 入口
+│   ├── router.ts           # 页面路由与按需拆包
+│   ├── styles.css          # Tailwind 入口、设计令牌与语义组件层
+│   ├── data/projects.ts    # 项目数据 store / API 客户端
+│   ├── data/freeFontAwesomeIcons.ts # 构建前自动生成的免费图标目录
 │   ├── components/         # 自定义下拉框、图标选择器等复用组件
 │   └── views/              # 公开页面、Admin 列表与独立编辑页面
 ├── scripts/                # 图标目录生成、Worker 回归验证
@@ -36,7 +39,9 @@ meikensite/
 ```bash
 npm install
 npm run dev                 # 仅启动 Vite 客户端，不包含 Worker API
+npm run typecheck           # 生成 Worker 绑定类型并检查全部 TypeScript/Vue 文件
 npm run build               # 更新免费图标目录并产出 dist/client 与 dist/server
+npm run verify:worker       # 构建并执行 SSR、错误页和静态资源回归检查
 npm run preview             # 预览 dist/client
 npm run db:migrate:local    # 初始化本地 D1
 npm run dev:worker          # 构建并启动完整 Worker + D1 环境

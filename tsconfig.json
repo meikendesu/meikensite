@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client", "node", "./worker-configuration.d.ts"]
+  },
+  "include": [
+    "env.d.ts",
+    "ssr-bundle.d.ts",
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "scripts/**/*.ts",
+    "vite.config.ts",
+    "worker.ts"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

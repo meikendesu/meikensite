@@ -1,5 +1,5 @@
-<script setup>
-import { t } from '../i18n/index.js'
+<script setup lang="ts">
+import { t } from '../i18n'
 import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 </script>
 

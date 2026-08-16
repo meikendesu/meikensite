@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, inject } from 'vue'
-import { t } from '../i18n/index.js'
-import { ProjectStoreKey } from '../data/projects.js'
+import { t } from '../i18n'
+import { ProjectStoreKey } from '../data/projects'
 
 const projectStore = inject(ProjectStoreKey)
 const { projects } = projectStore

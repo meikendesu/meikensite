@@ -1,8 +1,9 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
-import { locale, setLocale, t } from '../i18n/index.js'
+import { locale, setLocale, t } from '../i18n'
+import type { Locale } from '../types'
 
-const options = [
+const options: Array<{ code: Locale; label: string; short: string }> = [
   { code: 'zh-CN', label: '简体中文', short: '简' },
   { code: 'zh-TW', label: '繁體中文', short: '繁' },
   { code: 'en', label: 'English', short: 'EN' },
@@ -15,7 +16,7 @@ const menuOpen = ref(false)
 function toggleMenu() {
   menuOpen.value = !menuOpen.value
 }
-function choose(code) {
+function choose(code: Locale) {
   setLocale(code)
   menuOpen.value = false
 }
