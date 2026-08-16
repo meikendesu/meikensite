@@ -7,9 +7,13 @@ const projectStore = inject(ProjectStoreKey)
 const { projects } = projectStore
 const loadError = ref('')
 
-// 预设柔和色相（蓝/绿/橙/粉/紫/黄/青/红），随机分配
+// 预设柔和色相（蓝/绿/橙/粉/紫/黄/青/红），按项目稳定分配，避免刷新变色与布局闪动。
 const HUES = [210, 150, 30, 340, 270, 50, 190, 10]
-const colors = ref({})
+
+function projectStyle(project) {
+  const seed = String(project.slug || project.id).split('').reduce((total, char) => total + char.charCodeAt(0), 0)
+  return { '--card-hue': HUES[seed % HUES.length] }
+}
 
 onMounted(async () => {
   try {
@@ -17,14 +21,6 @@ onMounted(async () => {
   } catch (error) {
     loadError.value = error.message
   }
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const shuffled = [...HUES].sort(() => Math.random() - 0.5)
-  projects.forEach((p, i) => {
-    const hue = shuffled[i % shuffled.length]
-    colors.value[p.id] = isDark
-      ? { background: `hsla(${hue}, 45%, 26%, 0.6)`, color: `hsl(${hue}, 70%, 78%)` }
-      : { background: `hsla(${hue}, 78%, 92%, 0.8)`, color: `hsl(${hue}, 44%, 30%)` }
-  })
 })
 </script>
 
@@ -39,7 +35,7 @@ onMounted(async () => {
         v-for="p in projects"
         :key="p.id"
         class="work-card"
-        :style="colors[p.id]"
+        :style="projectStyle(p)"
       >
         <span class="work-tag">{{ p.tag }}</span>
         <h2>{{ p.name }}</h2>

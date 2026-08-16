@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi, requireAdminSession } from '../data/adminApi.js'
+import CustomSelect from '../components/CustomSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,11 @@ const editor = reactive({ id: null, slug: '', tag: '', title: '', description: '
 const md = new MarkdownIt({ html: false, linkify: true })
 const preview = computed(() => md.render(editor.markdown || ''))
 const isEditing = computed(() => Boolean(route.params.id))
+const headingOptions = [
+  { value: 1, label: '一级标题' },
+  { value: 2, label: '二级标题' },
+  { value: 3, label: '三级标题' }
+]
 
 async function loadEditor() {
   try {
@@ -101,6 +107,11 @@ function insertHeading() {
   headingLevel.value = ''
 }
 
+function selectHeading(value) {
+  headingLevel.value = value
+  insertHeading()
+}
+
 function insertList(ordered = false) {
   const input = markdownInput.value
   const selected = input ? editor.markdown.slice(input.selectionStart, input.selectionEnd).trim() : ''
@@ -138,16 +149,7 @@ onMounted(loadEditor)
         <label class="file-button">导入 .md<input type="file" accept=".md,text/markdown" @change="importMarkdown" /></label>
       </div>
       <div class="markdown-format-toolbar" role="toolbar" aria-label="Markdown 格式工具">
-        <label class="custom-select markdown-heading-select">
-          <span class="sr-only">插入标题</span>
-          <select v-model="headingLevel" aria-label="插入标题" @change="insertHeading">
-            <option value="">标题</option>
-            <option value="1">一级标题</option>
-            <option value="2">二级标题</option>
-            <option value="3">三级标题</option>
-          </select>
-          <i class="fa-solid fa-chevron-down"></i>
-        </label>
+        <CustomSelect class="markdown-heading-select" :model-value="headingLevel" :options="headingOptions" placeholder="标题" aria-label="插入标题" @update:model-value="selectHeading" />
         <button type="button" title="粗体" aria-label="插入粗体" @click="replaceSelection('**', '**', '粗体文本')"><i class="fa-solid fa-bold"></i></button>
         <button type="button" title="斜体" aria-label="插入斜体" @click="replaceSelection('*', '*', '斜体文本')"><i class="fa-solid fa-italic"></i></button>
         <button type="button" title="链接" aria-label="插入链接" @click="replaceSelection('[', '](https://example.com)', '链接文字')"><i class="fa-solid fa-link"></i></button>

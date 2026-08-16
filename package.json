@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/generate-icon-catalog.mjs",
     "dev": "vite",
     "dev:worker": "npm run build && wrangler dev",
     "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.js --outDir dist/server",
@@ -14,6 +15,7 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
     "@vue/server-renderer": "^3.5.41",
     "markdown-it": "^15.0.0",
     "opencc-js": "^1.4.1",

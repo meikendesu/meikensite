@@ -1,4 +1,8 @@
 import { createApp } from './app.js'
+import '@fortawesome/fontawesome-free/css/fontawesome.min.css'
+import '@fortawesome/fontawesome-free/css/solid.min.css'
+import '@fortawesome/fontawesome-free/css/regular.min.css'
+import '@fortawesome/fontawesome-free/css/brands.min.css'
 import './styles.css'
 
 // 客户端入口：hydrate 服务端渲染的内容

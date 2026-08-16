@@ -185,7 +185,7 @@ function validateSiteMethod(body) {
     actionType: String(body.actionType || '').trim(),
     qrEnabled: body.qrEnabled ? 1 : 0,
     enabled: body.enabled ? 1 : 0,
-    sortOrder: Number(body.sortOrder || 0)
+    sortOrder: body.sortOrder === undefined || body.sortOrder === null ? null : Number(body.sortOrder)
   }
   if (body.id && (!Number.isInteger(method.id) || method.id < 1)) return { error: '方式 ID 无效。' }
   if (!['contact', 'donation'].includes(method.category)) return { error: '方式分类无效。' }
@@ -194,7 +194,9 @@ function validateSiteMethod(body) {
   if (!method.name || !method.value || method.name.length > 80 || method.description.length > 120 || method.value.length > 500 || method.icon.length > 100) {
     return { error: '方式字段为空或超过长度限制。' }
   }
-  if (!Number.isInteger(method.sortOrder) || method.sortOrder < 0 || method.sortOrder > 9999) return { error: '排序值必须是 0 到 9999 的整数。' }
+  if (method.sortOrder !== null && (!Number.isInteger(method.sortOrder) || method.sortOrder < 0 || method.sortOrder > 9999)) {
+    return { error: '排序值必须是 0 到 9999 的整数。' }
+  }
   if (method.actionType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(method.value)) return { error: '邮箱地址格式无效。' }
   if (method.actionType === 'link') {
     try {
@@ -338,6 +340,25 @@ async function handleApi(request, env, pathname) {
     return json({ methods })
   }
 
+  if (request.method === 'POST' && pathname === '/api/admin/site-methods/reorder') {
+    const body = await readJson(request)
+    const category = String(body.category || '')
+    const orderedIds = Array.isArray(body.orderedIds) ? body.orderedIds.map(Number) : []
+    if (!['contact', 'donation'].includes(category) || !orderedIds.length || orderedIds.length > 200 || orderedIds.some((id) => !Number.isInteger(id) || id < 1)) {
+      return json({ error: '排序数据无效。' }, 400)
+    }
+    const existing = await env.DB.prepare('SELECT id FROM site_methods WHERE category = ? ORDER BY id').bind(category).all()
+    const existingIds = existing.results.map((row) => Number(row.id)).sort((a, b) => a - b)
+    const submittedIds = [...new Set(orderedIds)].sort((a, b) => a - b)
+    if (existingIds.length !== submittedIds.length || existingIds.some((id, index) => id !== submittedIds[index])) {
+      return json({ error: '排序列表与当前分组不一致，请刷新后重试。' }, 409)
+    }
+    await env.DB.batch(orderedIds.map((id, index) => env.DB.prepare(
+      'UPDATE site_methods SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND category = ?'
+    ).bind((index + 1) * 10, id, category)))
+    return json({ ok: true })
+  }
+
   if (request.method === 'POST' && pathname === '/api/admin/site-methods') {
     const validation = validateSiteMethod(await readJson(request))
     if (validation.error) return json({ error: validation.error }, 400)
@@ -347,16 +368,17 @@ async function handleApi(request, env, pathname) {
         await env.DB.prepare(
           `UPDATE site_methods SET category = ?, method_key = ?, name = ?, description = ?,
             value = ?, icon = ?, action_type = ?, qr_enabled = ?, is_enabled = ?,
-            sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+            sort_order = COALESCE(?, sort_order), updated_at = CURRENT_TIMESTAMP WHERE id = ?`
         ).bind(method.category, method.methodKey, method.name, method.description, method.value,
           method.icon, method.actionType, method.qrEnabled, method.enabled, method.sortOrder, method.id).run()
       } else {
         await env.DB.prepare(
           `INSERT INTO site_methods
             (category, method_key, name, description, value, icon, action_type, qr_enabled, is_enabled, sort_order)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?,
+             (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM site_methods WHERE category = ?)))`
         ).bind(method.category, method.methodKey, method.name, method.description, method.value,
-          method.icon, method.actionType, method.qrEnabled, method.enabled, method.sortOrder).run()
+          method.icon, method.actionType, method.qrEnabled, method.enabled, method.sortOrder, method.category).run()
       }
     } catch (error) {
       if (error?.message?.includes('UNIQUE constraint failed')) return json({ error: '方式标识已存在。' }, 409)

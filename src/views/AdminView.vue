@@ -12,6 +12,11 @@ const projects = ref([])
 const siteMethods = ref([])
 const loginPassword = ref('')
 const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
+const methodGroups = [
+  { category: 'contact', title: '联系方式', icon: 'fa-solid fa-address-book', empty: '暂无联系方式。' },
+  { category: 'donation', title: '捐助方式', icon: 'fa-solid fa-hand-holding-heart', empty: '暂无捐助方式。' }
+]
+const dragState = reactive({ category: '', id: null, overId: null, saving: false })
 
 async function checkSession() {
   try {
@@ -95,6 +100,64 @@ async function deleteSiteMethod(method) {
   }
 }
 
+function methodsFor(category) {
+  return siteMethods.value.filter((method) => method.category === category)
+}
+
+function startMethodDrag(event, method) {
+  dragState.category = method.category
+  dragState.id = method.id
+  dragState.overId = method.id
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', String(method.id))
+}
+
+async function dropMethod(category, targetId, event) {
+  if (dragState.saving || dragState.category !== category || !dragState.id) return
+  if (targetId === dragState.id) {
+    endMethodDrag()
+    return
+  }
+  const original = [...siteMethods.value]
+  const reordered = methodsFor(category)
+  const fromIndex = reordered.findIndex((method) => method.id === dragState.id)
+  if (fromIndex < 0) return
+  const [moved] = reordered.splice(fromIndex, 1)
+  if (targetId === null) {
+    reordered.push(moved)
+  } else {
+    const targetIndex = reordered.findIndex((method) => method.id === targetId)
+    if (targetIndex < 0) reordered.push(moved)
+    else {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const insertAfter = event.clientY > rect.top + rect.height / 2
+      reordered.splice(targetIndex + (insertAfter ? 1 : 0), 0, moved)
+    }
+  }
+  const otherCategory = category === 'contact' ? 'donation' : 'contact'
+  siteMethods.value = category === 'contact' ? [...reordered, ...methodsFor(otherCategory)] : [...methodsFor(otherCategory), ...reordered]
+  dragState.saving = true
+  try {
+    await adminApi('/api/admin/site-methods/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ category, orderedIds: reordered.map((method) => method.id) })
+    })
+    message.value = `${category === 'contact' ? '联系方式' : '捐助方式'}排序已保存。`
+  } catch (requestError) {
+    siteMethods.value = original
+    error.value = requestError.message
+  } finally {
+    endMethodDrag()
+  }
+}
+
+function endMethodDrag() {
+  dragState.category = ''
+  dragState.id = null
+  dragState.overId = null
+  dragState.saving = false
+}
+
 async function logout() {
   await adminApi('/api/admin/logout', { method: 'POST', body: '{}' })
   status.value = 'login'
@@ -163,24 +226,37 @@ onMounted(async () => {
         <p v-else class="form-message">暂无项目。</p>
       </section>
 
-      <section class="admin-panel">
+      <section v-for="group in methodGroups" :key="group.category" class="admin-panel admin-method-group">
         <div class="admin-section-title">
-          <h2>联系方式与捐助方式</h2>
-          <router-link class="work-btn" to="/admin/methods/new">添加方式</router-link>
+          <div class="admin-group-heading"><span><i :class="group.icon"></i></span><div><h2>{{ group.title }}</h2><small>拖动卡片可调整公开页面顺序</small></div></div>
+          <router-link class="work-btn" :to="`/admin/methods/new?category=${group.category}`">添加{{ group.title }}</router-link>
         </div>
-        <div v-if="siteMethods.length" class="admin-project-list">
-          <article v-for="method in siteMethods" :key="method.id">
-            <div>
-              <strong>{{ method.name }}</strong>
-              <small>{{ method.category === 'contact' ? '联系方式' : '捐助方式' }} · {{ method.methodKey }} · {{ method.enabled ? '已显示' : '已隐藏' }}</small>
-            </div>
+        <div v-if="methodsFor(group.category).length" class="admin-project-list admin-sortable-list">
+          <article
+            v-for="method in methodsFor(group.category)"
+            :key="method.id"
+            :class="{ dragging: dragState.id === method.id, 'drag-over': dragState.overId === method.id && dragState.id !== method.id }"
+            @dragover.prevent="dragState.overId = method.id"
+            @drop.prevent="dropMethod(group.category, method.id, $event)"
+          >
+            <button
+              class="admin-drag-handle"
+              type="button"
+              draggable="true"
+              :aria-label="`拖动${method.name}调整排序`"
+              @dragstart="startMethodDrag($event, method)"
+              @dragend="endMethodDrag"
+            ><i class="fa-solid fa-grip-vertical"></i></button>
+            <span class="admin-method-icon"><i :class="method.icon"></i></span>
+            <div class="admin-list-copy"><strong>{{ method.name }}</strong><small>{{ method.methodKey }} · {{ method.enabled ? '已显示' : '已隐藏' }}</small></div>
             <div class="admin-list-actions">
               <router-link :to="`/admin/methods/${method.id}/edit`">编辑</router-link>
               <button class="danger" type="button" @click="deleteSiteMethod(method)">删除</button>
             </div>
           </article>
+          <div class="admin-sort-drop-end" @dragover.prevent @drop.prevent="dropMethod(group.category, null, $event)">拖到这里置于末尾</div>
         </div>
-        <p v-else class="form-message">暂无联系方式或捐助方式。</p>
+        <p v-else class="form-message">{{ group.empty }}</p>
       </section>
     </template>
 

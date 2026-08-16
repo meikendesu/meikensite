@@ -10,6 +10,7 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章和管理员认证数据�
 - Cloudflare Workers + Assets
 - Cloudflare D1（项目文章、管理员密码哈希、登录会话）
 - Markdown It（安全模式，不执行文章中的原始 HTML）
+- Font Awesome Free 7（本地依赖，不再依赖第三方 CDN）
 
 ## 主要目录
 
@@ -23,7 +24,10 @@ meikensite/
 │   ├── entry-server.js     # SSR 入口
 │   ├── router.js           # 页面路由与按需拆包
 │   ├── data/projects.js    # 项目数据 store / API 客户端
+│   ├── data/freeFontAwesomeIcons.js # 构建前自动生成的免费图标目录
+│   ├── components/         # 自定义下拉框、图标选择器等复用组件
 │   └── views/              # 公开页面、Admin 列表与独立编辑页面
+├── scripts/                # 图标目录生成、Worker 回归验证
 └── public/                 # 字体等静态资源
 ```
 
@@ -32,7 +36,7 @@ meikensite/
 ```bash
 npm install
 npm run dev                 # 仅启动 Vite 客户端，不包含 Worker API
-npm run build               # 产出 dist/client 与 dist/server
+npm run build               # 更新免费图标目录并产出 dist/client 与 dist/server
 npm run preview             # 预览 dist/client
 npm run db:migrate:local    # 初始化本地 D1
 npm run dev:worker          # 构建并启动完整 Worker + D1 环境
@@ -70,8 +74,9 @@ npm run dev:worker
 2. 首次登录会被强制要求设置至少 8 个字符的新密码。
 3. 新建或编辑项目会进入独立页面；内置 Markdown 工具栏支持标题、粗体、斜体、链接、列表、引用和代码，并同步显示实时预览。
 4. 勾选“公开发布”后保存，文章会出现在 `/projects`。
-5. 在“联系方式与捐助方式”中可以新增、编辑、隐藏或删除公开方式。
-6. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
+5. 联系方式和捐助方式在两个独立分组中管理；使用每张卡片左侧把手，只能在当前分组内拖动排序。
+6. 方式编辑页可搜索并选择 Font Awesome 的全部免费图标，自定义下拉框不会调用浏览器原生弹层，表单下方会实时预览公开页面效果。
+7. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
 
