@@ -1,5 +1,6 @@
 import { ref, type InjectionKey, type Ref } from 'vue'
 import { t } from '../i18n'
+import { versionedTranslationUrl } from '../content/translationConfig'
 import type { AboutContent, Locale } from '../types'
 
 export const DEFAULT_ABOUT_CONTENT: AboutContent = {
@@ -32,7 +33,7 @@ export function createAboutStore(initialContent?: AboutContent | null): AboutSto
 
   async function loadAbout(locale: Locale, force = false) {
     if (contents.value[locale] && !force) return contents.value[locale] || null
-    const response = await fetch(`/api/about?locale=${encodeURIComponent(locale)}`)
+    const response = await fetch(versionedTranslationUrl(`/api/about?locale=${encodeURIComponent(locale)}`))
     if (!response.ok) {
       throw new Error(t('about.loadFailed'))
     }

@@ -1,5 +1,6 @@
 import { ref, shallowReactive } from 'vue'
 import { UI_MESSAGES_ZH_CN, type TranslationObject, type TranslationValue } from '../content/uiMessages'
+import { versionedTranslationUrl } from '../content/translationConfig'
 import type { Locale } from '../types'
 
 const STORAGE_KEY = 'meiken-locale'
@@ -37,7 +38,7 @@ function applyDocumentLocale(value: Locale) {
 
 export async function setLocale(value: Locale) {
   if (value !== 'zh-CN' && !translatedMessages[value]) {
-    const response = await fetch(`/api/translations/ui?locale=${encodeURIComponent(value)}`)
+    const response = await fetch(versionedTranslationUrl(`/api/translations/ui?locale=${encodeURIComponent(value)}`))
     const data = await response.json().catch(() => ({})) as { messages?: TranslationObject; error?: string }
     if (!response.ok || !data.messages) throw new Error(data.error || '自动翻译失败，请稍后重试。')
     translatedMessages[value] = data.messages

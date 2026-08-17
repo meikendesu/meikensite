@@ -42,6 +42,19 @@ const siteMethodRow = {
   is_enabled: 1,
   sort_order: 10
 }
+const donationMethodRow = {
+  id: 2,
+  category: 'donation',
+  method_key: 'afdian',
+  name: '爱发电',
+  description: '通过爱发电支持本站',
+  value: 'https://example.com/support',
+  icon: 'fa-solid fa-heart',
+  action_type: 'external',
+  qr_enabled: 0,
+  is_enabled: 1,
+  sort_order: 10
+}
 
 const translationCache = new Map<string, { sourceHash: string; translatedJson: string }>()
 
@@ -64,7 +77,9 @@ function statement(sql: string) {
     },
     async all() {
       if (sql.includes('FROM projects WHERE is_published = 1')) return { results: [projectRow], success: true }
-      if (sql.includes('FROM site_methods') && sql.includes('is_enabled = 1')) return { results: [siteMethodRow], success: true }
+      if (sql.includes('FROM site_methods') && sql.includes('is_enabled = 1')) {
+        return { results: [params[0] === 'donation' ? donationMethodRow : siteMethodRow], success: true }
+      }
       return { results: [], success: true }
     },
     async run() {
@@ -88,6 +103,7 @@ const mockDb = new Proxy({} as D1Database, {
 })
 
 let aiCalls = 0
+const aiModels: string[] = []
 function translatedClone(value: unknown, locale: string): unknown {
   if (typeof value === 'string') return `[${locale}] ${value}`
   if (Array.isArray(value)) return value.map((item) => translatedClone(item, locale))
@@ -98,10 +114,15 @@ function translatedClone(value: unknown, locale: string): unknown {
 }
 
 const mockAi = {
-  async run(_model: string, input: { messages: Array<{ content: string }> }) {
+  async run(model: string, input: { messages: Array<{ content: string }> }) {
     aiCalls += 1
-    const request = JSON.parse(input.messages[1].content)
-    return { response: { content: translatedClone(request.content, request.targetLocale) } }
+    aiModels.push(model)
+    const request = JSON.parse(input.messages[1].content.replace(/\n\/no_think$/, ''))
+    return {
+      choices: [{
+        message: { content: JSON.stringify({ content: translatedClone(request.content, request.targetLocale) }) }
+      }]
+    }
   }
 } as unknown as Ai
 
@@ -152,23 +173,59 @@ for (const pathname of ['/projects', '/projects/wawawa']) {
   assert.doesNotMatch(body, /work-btn-unavailable|暂未提供下载|下载应用/, `${pathname} 不应包含下载入口`)
 }
 
-const translationCases = [
+const aiTranslationCases = [
   ['/api/translations/ui?locale=en', 'messages', '[en] 首页'],
   ['/api/about?locale=ja', 'content', '[ja] 把复杂的事，'],
-  ['/api/projects?page=1&locale=zh-TW', 'projects', '[zh-TW] 摇晃发声程序'],
-  ['/api/projects/wawawa?locale=en', 'project', '[en] ## 主要功能'],
-  ['/api/site-methods?category=contact&locale=en', 'methods', '[en] 电子邮箱']
+  ['/api/projects/wawawa?locale=en', 'project', '[en] ## 主要功能']
 ] as const
 
-for (const [pathname, key, expected] of translationCases) {
+for (const [pathname, key, expected] of aiTranslationCases) {
   const response = await request(pathname)
   assert.equal(response.status, 200, `${pathname} 翻译状态码`)
   const data = await response.json() as Record<string, unknown>
   assert.match(JSON.stringify(data[key]), new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${pathname} 翻译内容`)
 }
-assert.equal(aiCalls, translationCases.length, '每类内容首次请求各调用一次 AI')
+assert.equal(aiCalls, aiTranslationCases.length, '英语和日语内容首次请求各调用一次 AI')
+assert.ok(aiModels.every((model) => model === '@cf/qwen/qwen3-30b-a3b-fp8'), '英语和日语翻译统一使用 Qwen3 30B')
+
+const traditionalResponse = await request('/api/projects?page=1&locale=zh-TW')
+assert.equal(traditionalResponse.status, 200, '繁体中文项目状态码')
+const traditionalData = await traditionalResponse.json() as { projects: Array<{ name: string; desc: string }> }
+assert.equal(traditionalData.projects[0]?.name, '搖晃發聲程式', '繁体中文标题使用台湾词汇转换')
+assert.equal(traditionalData.projects[0]?.desc, '檢測搖晃動作並播放音效。', '繁体中文说明使用台湾词汇转换')
+
+for (const [pathname, key, expected] of [
+  ['/api/translations/ui?locale=zh-TW', 'messages', '首頁'],
+  ['/api/about?locale=zh-TW', 'content', '把複雜的事，'],
+  ['/api/projects/wawawa?locale=zh-TW', 'project', '檢測搖晃動作並播放音效。'],
+  ['/api/site-methods?category=donation&locale=zh-TW', 'methods', '通過愛發電支援本站']
+] as const) {
+  const response = await request(pathname)
+  assert.equal(response.status, 200, `${pathname} 繁体中文状态码`)
+  const data = await response.json() as Record<string, unknown>
+  assert.match(JSON.stringify(data[key]), new RegExp(expected), `${pathname} 使用台湾词汇转换`)
+}
+assert.equal(aiCalls, aiTranslationCases.length, '繁体中文转换不调用 AI')
+
+const contactResponse = await request('/api/site-methods?category=contact&locale=en')
+assert.equal(contactResponse.status, 200, '联系方式状态码')
+const contactData = await contactResponse.json() as { methods: Array<{ name: string; description: string }> }
+assert.deepEqual(
+  contactData.methods.map(({ name, description }) => ({ name, description })),
+  [{ name: siteMethodRow.name, description: siteMethodRow.description }],
+  '联系方式的 strong 和 small 内容保持简体中文'
+)
+assert.equal(aiCalls, aiTranslationCases.length, '联系方式无需调用 AI 翻译')
+
+const donationResponse = await request('/api/site-methods?category=donation&locale=en')
+assert.equal(donationResponse.status, 200, '捐助方式状态码')
+const donationData = await donationResponse.json() as { methods: Array<{ name: string; description: string }> }
+assert.equal(donationData.methods[0]?.name, donationMethodRow.name, '捐助方式 h2 保持简体中文')
+assert.equal(donationData.methods[0]?.description, `[en] ${donationMethodRow.description}`, '捐助方式说明按语言翻译')
+assert.equal(aiCalls, aiTranslationCases.length + 1, '捐助方式首次请求只翻译说明')
+
 await request('/api/translations/ui?locale=en')
-assert.equal(aiCalls, translationCases.length, '相同源内容和语言应命中 D1 翻译缓存')
+assert.equal(aiCalls, aiTranslationCases.length + 1, '相同源内容和语言应命中 D1 翻译缓存')
 
 for (const [pathname, expectedText] of [
   ['/admin', '正在检查登录状态'],
@@ -210,7 +267,10 @@ assert.ok(prewarmRequests.includes('/api/site-methods?category=donation&locale=e
 
 console.log('✓ 已知路由返回 SSR 200')
 console.log('✓ 项目列表与项目详情均不再包含下载入口')
-console.log('✓ 界面、关于、项目列表、项目文章和站点信息按语言翻译并命中缓存')
+console.log('✓ 界面、关于、项目列表、项目文章和捐助说明按语言翻译并命中缓存')
+console.log('✓ 繁体中文使用 OpenCC 台湾词汇转换且不调用 AI')
+console.log('✓ 英语与日语使用 Qwen3 30B，兼容结构化 choices 输出')
+console.log('✓ 联系方式名称与说明、捐助方式标题保持简体中文')
 console.log('✓ 未授权 Admin 与独立编辑路由返回 HTTP 404')
 console.log('✓ 未知路由渲染现有 404 页并返回 HTTP 404')
 console.log('✓ /500 渲染现有 500 页并返回 HTTP 500')

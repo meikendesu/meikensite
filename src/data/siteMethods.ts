@@ -1,5 +1,6 @@
 import { ref, type InjectionKey, type Ref } from 'vue'
 import { locale, t } from '../i18n'
+import { versionedTranslationUrl } from '../content/translationConfig'
 import type { SiteMethod, SiteMethodCategory } from '../types'
 
 export interface SiteMethodStore {
@@ -17,7 +18,7 @@ export function createSiteMethodStore(initialMethods: SiteMethod[] = []): SiteMe
     const requestedLocale = locale.value
     const cacheKey = `${requestedLocale}:${category}`
     if (loadedKeys.has(cacheKey) && !force) return methods.value.filter((method) => method.category === category)
-    const response = await fetch(`/api/site-methods?category=${encodeURIComponent(category)}&locale=${encodeURIComponent(requestedLocale)}`)
+    const response = await fetch(versionedTranslationUrl(`/api/site-methods?category=${encodeURIComponent(category)}&locale=${encodeURIComponent(requestedLocale)}`))
     if (!response.ok) throw new Error(category === 'contact' ? t('contact.loadFailed') : t('support.loadFailed'))
     const data = await response.json() as { methods?: SiteMethod[] }
     methods.value = [

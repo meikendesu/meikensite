@@ -1,5 +1,6 @@
 import { ref, type InjectionKey, type Ref } from 'vue'
 import { locale, t } from '../i18n'
+import { versionedTranslationUrl } from '../content/translationConfig'
 import type { Project, ProjectPagination } from '../types'
 
 const DEFAULT_PAGINATION: ProjectPagination = { page: 1, pageSize: 10, total: 0, totalPages: 1 }
@@ -29,7 +30,7 @@ export function createProjectStore(
   async function loadProjects(page = 1, force = false) {
     const requestedLocale = locale.value
     if (loaded.value && pagination.value.page === page && loadedListLocale.value === requestedLocale && !force) return projects.value
-    const response = await fetch(`/api/projects?page=${page}&locale=${encodeURIComponent(requestedLocale)}`)
+    const response = await fetch(versionedTranslationUrl(`/api/projects?page=${page}&locale=${encodeURIComponent(requestedLocale)}`))
     if (!response.ok) throw new Error(t('projects.listLoadFailed'))
     const data = await response.json() as { projects?: Project[]; pagination?: ProjectPagination }
     projects.value = data.projects || []
@@ -43,7 +44,7 @@ export function createProjectStore(
     const requestedLocale = locale.value
     const existing = projects.value.find((project) => project.slug === slug)
     if (existing?.markdown && detailLocales.get(slug) === requestedLocale && !force) return existing
-    const response = await fetch(`/api/projects/${encodeURIComponent(slug)}?locale=${encodeURIComponent(requestedLocale)}`)
+    const response = await fetch(versionedTranslationUrl(`/api/projects/${encodeURIComponent(slug)}?locale=${encodeURIComponent(requestedLocale)}`))
     if (response.status === 404) return null
     if (!response.ok) throw new Error(t('detail.loadFailed'))
     const { project } = await response.json() as { project: Project }
