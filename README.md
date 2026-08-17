@@ -1,6 +1,10 @@
-# MEIKEN · Vue 3 + Vite SSR
+# MEIKEN 1.0.0 · Vue 3 + Vite SSR
 
 Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和管理员认证数据存储在 Cloudflare D1。
+
+当前仓库为 2026-08-17 正式发布的 `1.0.0` 版本。生产静态资源使用内容哈希与长期不可变缓存，内容页面保持服务端渲染，后台内容和按需翻译继续由 D1 与 Workers AI 提供。
+
+1.0 的生产性能基线、包体对比和优化取舍记录在 [PERFORMANCE.md](./PERFORMANCE.md)。
 
 ## 技术栈
 
