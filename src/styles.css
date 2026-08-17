@@ -1335,9 +1335,9 @@ button {
   font-size: 12px;
 }
 .markdown-format-toolbar {
-  @apply mb-2.5 flex items-center gap-1.5 overflow-x-auto rounded-[10px] border border-separator bg-control p-2;
+  @apply mb-2.5 flex flex-wrap items-center gap-1.5 overflow-visible rounded-[10px] border border-separator bg-control p-2;
 }
-.markdown-format-toolbar button {
+.markdown-format-toolbar > button {
   width: 36px;
   height: 34px;
   flex: 0 0 36px;
@@ -1348,7 +1348,7 @@ button {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-.markdown-format-toolbar button:hover {
+.markdown-format-toolbar > button:hover {
   background: var(--fill);
   color: var(--accent);
 }
