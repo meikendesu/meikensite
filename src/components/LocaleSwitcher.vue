@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { locale, setLocale } from '../i18n'
+import { locale, setLocale, t } from '../i18n'
+import { beginPageLoading } from '../data/pageLoading'
 import type { Locale } from '../types'
 
 const options: Array<{ code: Locale; label: string; short: string }> = [
@@ -12,13 +13,29 @@ const options: Array<{ code: Locale; label: string; short: string }> = [
 
 const current = computed(() => options.find((o) => o.code === locale.value) || options[0])
 const open = ref(false)
+const switching = ref(false)
+const error = ref('')
 
 function toggle() {
   open.value = !open.value
 }
-function choose(code: Locale) {
-  setLocale(code)
-  open.value = false
+async function choose(code: Locale) {
+  if (switching.value || code === locale.value) {
+    open.value = false
+    return
+  }
+  const finishLoading = beginPageLoading()
+  switching.value = true
+  error.value = ''
+  try {
+    await setLocale(code)
+    open.value = false
+  } catch (requestError) {
+    error.value = requestError instanceof Error ? requestError.message : t('language.failed')
+  } finally {
+    switching.value = false
+    finishLoading()
+  }
 }
 </script>
 
@@ -28,7 +45,7 @@ function choose(code: Locale) {
     <button
       class="locale-switcher-trigger"
       type="button"
-      aria-label="Language"
+      :aria-label="t('language.label')"
       :aria-expanded="open"
       @click="toggle"
     >
@@ -44,11 +61,13 @@ function choose(code: Locale) {
         :key="o.code"
         type="button"
         role="menuitem"
+        :disabled="switching"
         :class="{ active: locale === o.code }"
         @click="choose(o.code)"
       >
         {{ o.label }}
       </button>
     </div>
+    <p v-if="error" class="locale-switcher-error" role="alert">{{ error }}</p>
   </div>
 </template>

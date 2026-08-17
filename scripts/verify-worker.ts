@@ -5,22 +5,104 @@ import worker from '../worker'
 const origin = 'https://local.test'
 const template = await readFile(new URL('../dist/client/index.html', import.meta.url), 'utf8')
 
-function emptyStatement() {
+const projectRow = {
+  id: 1,
+  slug: 'wawawa',
+  tag: '安卓应用',
+  title: '摇晃发声程序',
+  description: '检测摇晃动作并播放音效。',
+  markdown: '## 主要功能\n\n检测摇晃动作并播放音效。',
+  is_published: 1,
+  published_at: '2026-08-01',
+  created_at: '2026-08-01',
+  updated_at: '2026-08-16'
+}
+const aboutRow = {
+  locale: 'zh-CN',
+  hero_title_line_1: '把复杂的事，',
+  hero_title_line_2: '做得清楚一点。',
+  hero_copy: '关于本人的一些信息。',
+  intro_heading: '一点自我介绍',
+  intro_paragraph_1: '我喜欢把想法变成作品。',
+  intro_paragraph_2: '持续学习，持续记录。',
+  facts_json: JSON.stringify([{ label: '身份', value: '学生' }]),
+  updated_at: '2026-08-16'
+}
+const siteMethodRow = {
+  id: 1,
+  category: 'contact',
+  method_key: 'email',
+  name: '电子邮箱',
+  description: '通过邮件联系',
+  value: 'hello@example.com',
+  icon: 'fa-solid fa-envelope',
+  action_type: 'email',
+  qr_enabled: 0,
+  is_enabled: 1,
+  sort_order: 10
+}
+
+const translationCache = new Map<string, { sourceHash: string; translatedJson: string }>()
+
+function statement(sql: string) {
+  let params: unknown[] = []
   return {
-    bind() { return this },
-    async first() { return null },
-    async all() { return { results: [], success: true } },
-    async run() { return { success: true } }
+    bind(...values: unknown[]) {
+      params = values
+      return this
+    },
+    async first() {
+      if (sql.includes('FROM translation_cache')) {
+        const cached = translationCache.get(`${params[0]}|${params[1]}|${params[2]}`)
+        return cached?.sourceHash === params[3] ? { translatedJson: cached.translatedJson } : null
+      }
+      if (sql.includes('FROM about_content')) return params[0] === 'zh-CN' ? aboutRow : null
+      if (sql.includes('COUNT(*) AS count FROM projects')) return { count: 1 }
+      if (sql.includes('FROM projects WHERE slug = ?')) return params[0] === projectRow.slug ? projectRow : null
+      return null
+    },
+    async all() {
+      if (sql.includes('FROM projects WHERE is_published = 1')) return { results: [projectRow], success: true }
+      if (sql.includes('FROM site_methods') && sql.includes('is_enabled = 1')) return { results: [siteMethodRow], success: true }
+      return { results: [], success: true }
+    },
+    async run() {
+      if (sql.includes('INSERT INTO translation_cache')) {
+        translationCache.set(`${params[0]}|${params[1]}|${params[2]}`, {
+          sourceHash: String(params[3]),
+          translatedJson: String(params[4])
+        })
+      }
+      return { success: true }
+    }
   }
 }
 
 const mockDb = new Proxy({} as D1Database, {
   get(_target, property) {
-    if (property === 'prepare') return () => emptyStatement()
+    if (property === 'prepare') return (sql: string) => statement(sql)
     if (property === 'batch') return async () => []
     return undefined
   }
 })
+
+let aiCalls = 0
+function translatedClone(value: unknown, locale: string): unknown {
+  if (typeof value === 'string') return `[${locale}] ${value}`
+  if (Array.isArray(value)) return value.map((item) => translatedClone(item, locale))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, translatedClone(item, locale)]))
+  }
+  return value
+}
+
+const mockAi = {
+  async run(_model: string, input: { messages: Array<{ content: string }> }) {
+    aiCalls += 1
+    const request = JSON.parse(input.messages[1].content)
+    return { response: { content: translatedClone(request.content, request.targetLocale) } }
+  }
+} as unknown as Ai
 
 const env: Env = {
   // 使用最小的本地 binding 替身调用 Worker，无需连接 Cloudflare 或真实 D1。
@@ -36,9 +118,9 @@ const env: Env = {
       return new Response('asset not found', { status: 404 })
     }
   } as Fetcher,
-  // 后台翻译端点在未授权回归中不会调用 AI；保留绑定占位以匹配生产 Env。
-  AI: {} as Ai,
-  // 最小 D1 替身：Admin 会话为空；畸形项目 URL 会在真正查询前触发解码错误。
+  // 使用确定性的本地 AI 替身，验证按需翻译和缓存，不把内容发送到外部服务。
+  AI: mockAi,
+  // D1 替身包含一条项目、关于页、联系方式和内存翻译缓存。
   DB: mockDb
 }
 
@@ -62,6 +144,31 @@ const home = await request('/')
 assert.equal(home.status, 200, '已知路由状态码')
 assert.match(await home.text(), /<div id="app">.+<\/div>/s, '已知路由 SSR 内容')
 
+for (const pathname of ['/projects', '/projects/wawawa']) {
+  const response = await request(pathname)
+  const body = await response.text()
+  assert.equal(response.status, 200, `${pathname} 状态码`)
+  assert.doesNotMatch(body, /work-btn-unavailable|暂未提供下载|下载应用/, `${pathname} 不应包含下载入口`)
+}
+
+const translationCases = [
+  ['/api/translations/ui?locale=en', 'messages', '[en] 首页'],
+  ['/api/about?locale=ja', 'content', '[ja] 把复杂的事，'],
+  ['/api/projects?page=1&locale=zh-TW', 'projects', '[zh-TW] 摇晃发声程序'],
+  ['/api/projects/wawawa?locale=en', 'project', '[en] ## 主要功能'],
+  ['/api/site-methods?category=contact&locale=en', 'methods', '[en] 电子邮箱']
+] as const
+
+for (const [pathname, key, expected] of translationCases) {
+  const response = await request(pathname)
+  assert.equal(response.status, 200, `${pathname} 翻译状态码`)
+  const data = await response.json() as Record<string, unknown>
+  assert.match(JSON.stringify(data[key]), new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${pathname} 翻译内容`)
+}
+assert.equal(aiCalls, translationCases.length, '每类内容首次请求各调用一次 AI')
+await request('/api/translations/ui?locale=en')
+assert.equal(aiCalls, translationCases.length, '相同源内容和语言应命中 D1 翻译缓存')
+
 for (const [pathname, expectedText] of [
   ['/admin', '正在检查登录状态'],
   ['/admin/about', '正在加载关于页面内容'],
@@ -84,6 +191,8 @@ assert.equal(asset.status, 206, '静态资源回退状态码')
 assert.equal(await asset.text(), 'static asset fallback', '静态资源回退响应')
 
 console.log('✓ 已知路由返回 SSR 200')
+console.log('✓ 项目列表与项目详情均不再包含下载入口')
+console.log('✓ 界面、关于、项目列表、项目文章和站点信息按语言翻译并命中缓存')
 console.log('✓ 未授权 Admin 与独立编辑路由返回 HTTP 404')
 console.log('✓ 未知路由渲染现有 404 页并返回 HTTP 404')
 console.log('✓ /500 渲染现有 500 页并返回 HTTP 500')

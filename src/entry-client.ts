@@ -4,6 +4,7 @@ import '@fortawesome/fontawesome-free/css/solid.min.css'
 import '@fortawesome/fontawesome-free/css/regular.min.css'
 import '@fortawesome/fontawesome-free/css/brands.min.css'
 import './styles.css'
+import { restoreSavedLocale } from './i18n'
 
 // 客户端入口：hydrate 服务端渲染的内容
 const initialProjects = window.__MEIKEN_STATE__?.projects || []
@@ -14,4 +15,5 @@ const { app, router } = createApp({ initialProjects, initialProjectPagination, i
 
 router.isReady().then(() => {
   app.mount('#app')
+  void restoreSavedLocale().catch((error) => console.error('恢复语言设置失败：', error))
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch } from 'vue'
-import { locale } from '../i18n'
+import { locale, t } from '../i18n'
 import { AboutStoreKey, DEFAULT_ABOUT_CONTENT } from '../data/about'
 import { beginPageLoading } from '../data/pageLoading'
 
@@ -14,7 +14,7 @@ async function loadContent() {
   try {
     await store.loadAbout(locale.value)
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : '关于页面内容加载失败。'
+    loadError.value = error instanceof Error ? error.message : t('about.loadFailed')
   } finally {
     finishLoading()
   }

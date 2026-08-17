@@ -8,7 +8,7 @@ import type { AboutContent } from '../types'
 const router = useRouter()
 const status = ref<'loading' | 'ready' | 'error'>('loading')
 const error = ref('')
-const translating = ref(false)
+const saving = ref(false)
 const editor = ref<AboutContent | null>(null)
 
 async function loadEditor() {
@@ -38,9 +38,9 @@ function removeFact(index: number) {
 }
 
 async function saveContent() {
-  if (!editor.value || translating.value) return
+  if (!editor.value || saving.value) return
   error.value = ''
-  translating.value = true
+  saving.value = true
   try {
     await adminApi('/api/admin/about', {
       method: 'POST',
@@ -48,9 +48,9 @@ async function saveContent() {
     })
     await router.push({ path: '/admin', query: { saved: 'about' } })
   } catch (requestError) {
-    error.value = requestError instanceof Error ? requestError.message : '关于页面保存或自动翻译失败。'
+    error.value = requestError instanceof Error ? requestError.message : '关于页面保存失败。'
   } finally {
-    translating.value = false
+    saving.value = false
   }
 }
 
@@ -72,7 +72,7 @@ onMounted(loadEditor)
 
     <form v-else-if="editor" class="admin-panel admin-editor" @submit.prevent="saveContent">
       <p class="admin-help admin-translation-help">
-        后台只维护简体中文。保存时会使用 Cloudflare Workers AI 的免费多语言模型，自动生成繁体中文、英语和日语内容；翻译失败时不会覆盖现有内容。
+        后台只维护简体中文源内容。访客选择繁体中文、英语或日语后，Worker 才会自动翻译当前内容并缓存结果；后续修改源内容时缓存会自动失效。
       </p>
 
       <div class="admin-fields-grid">
@@ -98,8 +98,8 @@ onMounted(loadEditor)
 
       <div class="admin-form-actions">
         <router-link class="work-btn" to="/admin">取消</router-link>
-        <button class="admin-primary" type="submit" :disabled="translating">
-          {{ translating ? '正在保存并自动翻译…' : '保存并自动翻译' }}
+        <button class="admin-primary" type="submit" :disabled="saving">
+          {{ saving ? '正在保存…' : '保存简体中文内容' }}
         </button>
       </div>
       <p v-if="error" class="form-message error" role="alert">{{ error }}</p>

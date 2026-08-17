@@ -1,4 +1,5 @@
 import { ref, type InjectionKey, type Ref } from 'vue'
+import { t } from '../i18n'
 import type { AboutContent, Locale } from '../types'
 
 export const DEFAULT_ABOUT_CONTENT: AboutContent = {
@@ -33,8 +34,7 @@ export function createAboutStore(initialContent?: AboutContent | null): AboutSto
     if (contents.value[locale] && !force) return contents.value[locale] || null
     const response = await fetch(`/api/about?locale=${encodeURIComponent(locale)}`)
     if (!response.ok) {
-      if (locale !== 'zh-CN') return loadAbout('zh-CN', force)
-      throw new Error('关于页面内容加载失败。')
+      throw new Error(t('about.loadFailed'))
     }
     const data = await response.json() as { content?: AboutContent }
     if (!data.content) return null

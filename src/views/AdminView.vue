@@ -243,7 +243,7 @@ onMounted(async () => {
     <template v-else-if="status === 'ready'">
       <section class="admin-panel">
         <div class="admin-section-title">
-          <div><h2>关于页面</h2><p class="admin-help">维护简体中文源内容，保存后自动生成繁体中文、英语和日语。</p></div>
+          <div><h2>关于页面</h2><p class="admin-help">只维护简体中文源内容；访客选择其他语言时按需翻译。</p></div>
           <router-link class="work-btn" to="/admin/about">编辑关于页面</router-link>
         </div>
       </section>

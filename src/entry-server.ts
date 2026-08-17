@@ -85,7 +85,7 @@ async function loadInitialAbout(url: string, env?: Env): Promise<AboutContent | 
       intro_paragraph_1 AS introParagraph1, intro_paragraph_2 AS introParagraph2,
       facts_json AS factsJson, updated_at AS updatedAt
      FROM about_content WHERE locale = ?`
-  ).bind(locale.value).first<AboutContentRow>()
+  ).bind('zh-CN').first<AboutContentRow>()
   if (!row) return null
   const { factsJson, ...content } = row
   return { ...content, facts: parseFacts(factsJson) }
@@ -110,8 +110,8 @@ async function loadInitialSiteMethods(url: string, env?: Env): Promise<SiteMetho
 }
 
 export async function render(url: string, request?: Request, env?: Env) {
-  // 服务端根据 Accept-Language 确定初始语言
-  initLocale(request?.headers?.get?.('accept-language'))
+  // 服务端只渲染简体中文源内容；访客主动选择语言后再由客户端请求翻译。
+  initLocale()
 
   const [{ projects, pagination: projectPagination }, siteMethods, aboutContent] = await Promise.all([
     loadInitialProjects(url, env),

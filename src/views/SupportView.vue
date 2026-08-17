@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
-import { t } from '../i18n'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { locale, t } from '../i18n'
 import { SiteMethodStoreKey } from '../data/siteMethods'
 import type { SiteMethod } from '../types'
 import { beginPageLoading } from '../data/pageLoading'
@@ -21,7 +21,7 @@ function showNote(message: string) {
 
 async function useMethod(method: SiteMethod) {
   if (method.value.includes('待填写')) {
-    showNote(`${method.name} 收款信息尚未填写。`)
+    showNote(`${method.name} ${t('support.methodUnset')}`)
     return
   }
   if (method.actionType === 'link') {
@@ -30,22 +30,25 @@ async function useMethod(method: SiteMethod) {
   }
   try {
     await navigator.clipboard.writeText(method.value)
-    showNote(`${method.name} 地址已复制。`)
+    showNote(`${method.name} ${t('support.addressCopied')}`)
   } catch {
-    showNote('复制失败，请手动复制地址。')
+    showNote(t('support.copyFailed'))
   }
 }
 
-onMounted(async () => {
+async function loadMethods(force = false) {
   const finishPageLoading = beginPageLoading()
   try {
-    await store.loadMethods('donation')
+    await store.loadMethods('donation', force)
   } catch (requestError) {
-    showNote(requestError instanceof Error ? requestError.message : '捐助方式加载失败。')
+    showNote(requestError instanceof Error ? requestError.message : t('support.loadFailed'))
   } finally {
     finishPageLoading()
   }
-})
+}
+
+onMounted(() => loadMethods())
+watch(locale, () => loadMethods(true))
 onBeforeUnmount(() => {
   if (timer) clearTimeout(timer)
 })
@@ -57,7 +60,7 @@ onBeforeUnmount(() => {
       <h1>{{ t('support.title') }}</h1>
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>
     </section>
-    <section class="payment-list" aria-label="捐助方式">
+    <section class="payment-list" :aria-label="t('support.paymentMethods')">
       <article v-for="method in methods" :key="method.id" class="payment-card" :class="method.methodKey">
         <div class="payment-heading">
           <span class="payment-icon"><i :class="method.icon"></i></span>
@@ -70,7 +73,7 @@ onBeforeUnmount(() => {
           <code>{{ method.value }}</code>
           <button type="button" @click="useMethod(method)">
             <i :class="method.actionType === 'link' ? 'fa-solid fa-arrow-up-right-from-square' : 'fa-regular fa-copy'"></i>
-            {{ method.actionType === 'link' ? '打开' : t('common.copy') }}
+            {{ method.actionType === 'link' ? t('common.open') : t('common.copy') }}
           </button>
         </div>
       </article>
@@ -78,8 +81,8 @@ onBeforeUnmount(() => {
 
     <div v-if="activeQr" class="qr-modal" role="dialog" aria-modal="true" @click.self="activeQr = null">
       <div class="qr-modal-box">
-        <button class="qr-modal-close" type="button" aria-label="关闭" @click="activeQr = null"><i class="fa-solid fa-xmark"></i></button>
-        <img class="qr-modal-img" :src="`/api/site-methods/${activeQr.id}/qr`" :alt="`${activeQr.name} 收款二维码`" />
+        <button class="qr-modal-close" type="button" :aria-label="t('common.close')" @click="activeQr = null"><i class="fa-solid fa-xmark"></i></button>
+        <img class="qr-modal-img" :src="`/api/site-methods/${activeQr.id}/qr`" :alt="`${activeQr.name} ${t('support.qrCode')}`" />
         <p class="qr-modal-title">{{ activeQr.name }}</p>
         <p class="qr-modal-hint">{{ t('support.modalHint') }}</p>
       </div>

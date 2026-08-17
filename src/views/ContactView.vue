@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref } from 'vue'
-import { t } from '../i18n'
+import { computed, inject, onMounted, ref, watch } from 'vue'
+import { locale, t } from '../i18n'
 import { SiteMethodStoreKey } from '../data/siteMethods'
 import type { SiteMethod } from '../types'
 import { beginPageLoading } from '../data/pageLoading'
@@ -19,20 +19,24 @@ async function copyValue(method: SiteMethod) {
   try {
     await navigator.clipboard.writeText(method.value)
   } catch {
-    error.value = '复制失败，请手动复制。'
+    error.value = t('contact.copyFailed')
   }
 }
 
-onMounted(async () => {
+async function loadMethods(force = false) {
   const finishPageLoading = beginPageLoading()
+  error.value = ''
   try {
-    await store.loadMethods('contact')
+    await store.loadMethods('contact', force)
   } catch (requestError) {
-    error.value = requestError instanceof Error ? requestError.message : '联系方式加载失败。'
+    error.value = requestError instanceof Error ? requestError.message : t('contact.loadFailed')
   } finally {
     finishPageLoading()
   }
-})
+}
+
+onMounted(() => loadMethods())
+watch(locale, () => loadMethods(true))
 </script>
 
 <template>

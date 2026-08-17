@@ -36,7 +36,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 <template>
   <a class="skip-link" href="#main">{{ t('a11y.skip') }}</a>
   <transition name="loader-fade">
-    <div v-if="pageLoading" class="page-loading" role="status" aria-live="polite" aria-label="页面加载中">
+    <div v-if="pageLoading" class="page-loading" role="status" aria-live="polite" :aria-label="t('a11y.pageLoading')">
       <span class="page-loading-ring" aria-hidden="true"></span>
     </div>
   </transition>

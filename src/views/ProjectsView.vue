@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue'
-import { t } from '../i18n'
+import { ref, onMounted, inject, watch } from 'vue'
+import { locale, t } from '../i18n'
 import { ProjectStoreKey } from '../data/projects'
 import { beginPageLoading } from '../data/pageLoading'
 import type { Project } from '../types'
@@ -25,7 +25,7 @@ async function goToPage(page: number) {
     await projectStore.loadProjects(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : '项目列表加载失败。'
+    loadError.value = error instanceof Error ? error.message : t('projects.listLoadFailed')
   } finally {
     finishLoading()
   }
@@ -36,7 +36,19 @@ onMounted(async () => {
   try {
     await projectStore.loadProjects(1)
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : '项目列表加载失败。'
+    loadError.value = error instanceof Error ? error.message : t('projects.listLoadFailed')
+  } finally {
+    finishLoading()
+  }
+})
+
+watch(locale, async () => {
+  const finishLoading = beginPageLoading()
+  loadError.value = ''
+  try {
+    await projectStore.loadProjects(pagination.value.page, true)
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : t('projects.listLoadFailed')
   } finally {
     finishLoading()
   }
@@ -65,11 +77,6 @@ onMounted(async () => {
             :to="`/projects/${p.slug}`"
             :aria-label="`${t('common.viewProject')}：${p.name}`"
             ><i class="fa-solid fa-eye"></i> {{ t('common.viewProject') }}</router-link
-          ><span
-            class="work-btn work-btn-ghost work-btn-unavailable"
-            role="status"
-            :aria-label="`${t('common.downloadUnavailable')}：${p.name}`"
-            ><i class="fa-solid fa-circle-info"></i> {{ t('common.downloadUnavailable') }}</span
           >
         </div>
       </article>

@@ -4,7 +4,7 @@ import LocaleSwitcher from './LocaleSwitcher.vue'
 </script>
 
 <template>
-  <nav class="tabbar" aria-label="页面导航">
+  <nav class="tabbar" :aria-label="t('a11y.navigation')">
     <router-link to="/" exact-active-class="active"
       ><i class="fa-solid fa-house"></i>{{ t('nav.home') }}</router-link
     ><div class="tabbar-spacer"></div>

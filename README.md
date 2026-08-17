@@ -10,7 +10,7 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和�
 - Vue Router 4（HTML5 history 路由）
 - Vite 6（客户端 + SSR 构建）
 - Cloudflare Workers + Assets
-- Cloudflare Workers AI（关于页自动翻译）
+- Cloudflare Workers AI（访客选择语言后按需翻译公开内容）
 - Cloudflare D1（项目文章、管理员密码哈希、登录会话）
 - Markdown It（安全模式，不执行文章中的原始 HTML）
 - Font Awesome Free 7（本地依赖，不再依赖第三方 CDN）
@@ -59,7 +59,7 @@ npm run dev:worker          # 构建并启动完整 Worker + D1 环境
 | `/contact` | 联系方式 |
 | `/support` | USDT、ETH、BTC、PayPal 捐助方式 |
 | `/admin` | 私有管理员入口；未授权访问返回 HTTP 404 |
-| `/admin/about` | 简体中文关于页面编辑与 AI 自动翻译 |
+| `/admin/about` | 简体中文关于页面编辑 |
 | `/admin/projects/new` | 独立的项目与 Markdown 新建页面 |
 | `/admin/projects/:id/edit` | 独立的项目与 Markdown 编辑页面 |
 | `/admin/methods/new` | 独立的联系方式/捐助方式添加页面 |
@@ -93,7 +93,7 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 5. 联系方式和捐助方式在两个独立分组中管理；使用每张卡片左侧把手，只能在当前分组内拖动排序。
 6. 方式编辑页可搜索并选择 Font Awesome 的全部免费图标，自定义下拉框不会调用浏览器原生弹层，表单下方会实时预览公开页面效果。
 7. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
-8. 关于页面编辑器只维护简体中文；保存后由 `@cf/meta/llama-3.1-8b-instruct-fast` 自动生成繁体中文、英语和日语。翻译会逐种语言执行、校验并在必要时重试；任何一种失败时四种语言都不会被覆盖。
+8. 关于页面、项目文章、联系方式与捐助方式都只维护简体中文源内容。访客选择繁体中文、英语或日语后，`@cf/meta/llama-3.1-8b-instruct-fast` 才会翻译当前公开内容；翻译结果经过结构校验并缓存到 D1，源内容修改后缓存会自动失效。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
 
@@ -125,9 +125,9 @@ npx wrangler secret put ADMIN_ENTRY_KEY
 npm run deploy
 ```
 
-`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面四语言内容以及项目发布日期字段。`wrangler.jsonc` 已声明 `AI` binding，不需要额外提供模型 API Key。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
+`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面内容以及项目发布日期字段；`migrations/0006_on_demand_translation_cache.sql` 会清理旧的非简体中文关于页副本，并建立按需翻译缓存。`wrangler.jsonc` 已声明 `AI` binding，不需要额外提供模型 API Key。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
 
-关于页翻译使用 Cloudflare Workers AI 的免费额度。额度耗尽或模型暂时不可用时，后台会明确提示失败，并保留数据库中的现有内容。
+公开内容翻译使用 Cloudflare Workers AI 的免费额度。额度耗尽或模型暂时不可用时，语言切换器会明确提示失败并继续显示简体中文，不会改写源内容。相同源内容和语言会直接复用 D1 缓存。
 
 生产私有入口格式如下，请勿公开或提交真实密钥：
 
@@ -136,6 +136,8 @@ https://你的域名/admin#access=你的ADMIN_ENTRY_KEY
 ```
 
 所有页面在客户端路由与异步条目加载期间显示圆环占位，加载完成后立即隐藏，不再人为延迟首屏内容。
+
+项目列表与项目详情只提供阅读入口，不显示下载按钮。
 
 备份生产文章：
 
