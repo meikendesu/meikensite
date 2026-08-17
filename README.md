@@ -127,7 +127,7 @@ npm run deploy
 
 `migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面内容以及项目发布日期字段；`migrations/0006_on_demand_translation_cache.sql` 会清理旧的非简体中文关于页副本，并建立按需翻译缓存。`wrangler.jsonc` 已声明 `AI` binding，不需要额外提供模型 API Key。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
 
-`npm run deploy` 会先构建并部署 Worker，再运行 `scripts/prewarm-translations.ts` 请求线上公开接口；AI 调用始终发生在已部署的 Worker 内。Cloudflare Workers Builds 的 Deploy command 应设置为 `npm run deploy`，才能让 GitHub 后续每次推送都自动执行同一流程。自定义域名变化时，可通过 `MEIKEN_SITE_URL=https://你的域名 npm run translations:prewarm` 指定预热地址。
+`npm run deploy` 会先构建并部署 Worker，再运行 `scripts/prewarm-translations.ts` 请求线上公开接口；AI 调用始终发生在已部署的 Worker 内。Cloudflare Workers Builds 保持 Build command 为 `npm run build`，并将 Deploy command 设置为 `npm run deploy:worker`，避免重复构建，同时让 GitHub 后续每次推送都自动完成部署和预热。自定义域名变化时，可通过 `MEIKEN_SITE_URL=https://你的域名 npm run translations:prewarm` 指定预热地址。
 
 公开内容翻译使用 Cloudflare Workers AI 的免费额度。额度耗尽或模型暂时不可用时，语言切换器会明确提示失败并继续显示简体中文，不会改写源内容。相同源内容和语言会直接复用 D1 缓存。
 
