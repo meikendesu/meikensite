@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import worker from '../worker'
+import { prewarmTranslations } from './prewarm-translations'
 
 const origin = 'https://local.test'
 const template = await readFile(new URL('../dist/client/index.html', import.meta.url), 'utf8')
@@ -190,6 +191,23 @@ const asset = await request('/fonts/verify.woff2')
 assert.equal(asset.status, 206, '静态资源回退状态码')
 assert.equal(await asset.text(), 'static asset fallback', '静态资源回退响应')
 
+const prewarmRequests: string[] = []
+const prewarmResult = await prewarmTranslations(origin, (async (input) => {
+  const url = new URL(input instanceof Request ? input.url : input)
+  prewarmRequests.push(`${url.pathname}${url.search}`)
+  if (url.pathname === '/api/projects' && url.searchParams.get('locale') === 'zh-CN') {
+    return Response.json({
+      projects: [{ slug: projectRow.slug }],
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 }
+    })
+  }
+  return Response.json({ ok: true })
+}) as typeof fetch)
+assert.deepEqual(prewarmResult, { origin, requests: 18, projects: 1, pages: 1 }, '预热摘要')
+assert.equal(prewarmRequests.length, 19, '预热应先读取简体中文项目索引，再覆盖全部目标语言内容')
+assert.ok(prewarmRequests.includes('/api/projects/wawawa?locale=ja'), '预热应覆盖项目详情')
+assert.ok(prewarmRequests.includes('/api/site-methods?category=donation&locale=en'), '预热应覆盖捐助方式')
+
 console.log('✓ 已知路由返回 SSR 200')
 console.log('✓ 项目列表与项目详情均不再包含下载入口')
 console.log('✓ 界面、关于、项目列表、项目文章和站点信息按语言翻译并命中缓存')
@@ -198,3 +216,4 @@ console.log('✓ 未知路由渲染现有 404 页并返回 HTTP 404')
 console.log('✓ /500 渲染现有 500 页并返回 HTTP 500')
 console.log('✓ SSR 异常渲染现有 500 页并返回 HTTP 500')
 console.log('✓ 静态资源请求仍由 ASSETS binding 回退处理')
+console.log('✓ 部署后预热覆盖三种目标语言及全部公开内容')

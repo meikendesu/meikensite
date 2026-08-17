@@ -13,7 +13,8 @@
     "preview": "vite preview --outDir dist/client",
     "db:migrate:local": "wrangler d1 migrations apply meikensite-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply meikensite-db --remote",
-    "deploy": "npm run build && wrangler deploy"
+    "translations:prewarm": "tsx scripts/prewarm-translations.ts",
+    "deploy": "npm run build && wrangler deploy && npm run translations:prewarm"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

@@ -479,6 +479,59 @@ async function translateSiteMethodsForLocale(db: D1Database, ai: Ai, category: s
   return methods.map((method, index) => ({ ...method, ...translated.items[index] }))
 }
 
+async function prewarmTargetLocales(task: (locale: Locale) => Promise<unknown>) {
+  await Promise.all(TARGET_LOCALES.map(task))
+}
+
+function scheduleTranslationPrewarm(
+  ctx: ExecutionContext,
+  label: string,
+  task: Promise<unknown>
+) {
+  ctx.waitUntil(task.then(() => {
+    console.log(JSON.stringify({ event: 'translation_prewarm_completed', label }))
+  }).catch((error) => {
+    // 预热失败不应让已经完成的后台保存回滚；用户请求时仍有同步翻译兜底。
+    console.error(JSON.stringify({
+      event: 'translation_prewarm_failed',
+      label,
+      message: error instanceof Error ? error.message : 'unknown'
+    }))
+  }))
+}
+
+async function prewarmAboutTranslations(db: D1Database, ai: Ai) {
+  const content = await getAboutContent(db, 'zh-CN') as AboutContent | null
+  if (!content) return
+  await prewarmTargetLocales((locale) => translateAboutForLocale(db, ai, content, locale))
+}
+
+async function prewarmSiteMethodTranslations(db: D1Database, ai: Ai, category: string) {
+  const methods = await listSiteMethods(db, category)
+  await prewarmTargetLocales((locale) => translateSiteMethodsForLocale(db, ai, category, methods, locale))
+}
+
+async function prewarmProjectTranslations(db: D1Database, ai: Ai, slug?: string) {
+  const firstPage = await listPublishedProjectPage(db, 1)
+  const pages = [firstPage]
+  for (let page = 2; page <= firstPage.pagination.totalPages; page += 1) {
+    pages.push(await listPublishedProjectPage(db, page))
+  }
+  for (const result of pages) {
+    await prewarmTargetLocales((locale) => translateProjectListForLocale(db, ai, result.pagination.page, result, locale))
+  }
+
+  if (!slug) return
+  const row = await db.prepare(
+    `SELECT id, slug, tag, title, description, markdown, is_published,
+      published_at, created_at, updated_at
+       FROM projects WHERE slug = ? AND is_published = 1`
+  ).bind(slug).first()
+  if (!row) return
+  const project = normalizeProject(row)
+  await prewarmTargetLocales((locale) => translateProjectForLocale(db, ai, project, locale))
+}
+
 function translationFailure(pathname: string, error: unknown) {
   console.error(JSON.stringify({
     event: 'translation_failed',
@@ -528,7 +581,7 @@ function validateSiteMethod(body: Record<string, unknown>) {
   return { method }
 }
 
-async function handleApi(request: Request, env: Env, pathname: string) {
+async function handleApi(request: Request, env: Env, pathname: string, ctx: ExecutionContext) {
   if (!env.DB) return json({ error: 'D1 数据库尚未绑定。' }, 503)
   const requestUrl = new URL(request.url)
 
@@ -750,6 +803,7 @@ async function handleApi(request: Request, env: Env, pathname: string) {
       prepareAboutUpsert(env.DB, content),
       env.DB.prepare(`DELETE FROM about_content WHERE locale <> 'zh-CN'`)
     ])
+    scheduleTranslationPrewarm(ctx, 'about', prewarmAboutTranslations(env.DB, env.AI))
     return json({ ok: true })
   }
 
@@ -777,6 +831,7 @@ async function handleApi(request: Request, env: Env, pathname: string) {
     await env.DB.batch(orderedIds.map((id, index) => env.DB.prepare(
       'UPDATE site_methods SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND category = ?'
     ).bind((index + 1) * 10, id, category)))
+    scheduleTranslationPrewarm(ctx, `site-methods:${category}`, prewarmSiteMethodTranslations(env.DB, env.AI, category))
     return json({ ok: true })
   }
 
@@ -805,13 +860,26 @@ async function handleApi(request: Request, env: Env, pathname: string) {
       if (error?.message?.includes('UNIQUE constraint failed')) return json({ error: '方式标识已存在。' }, 409)
       throw error
     }
+    scheduleTranslationPrewarm(
+      ctx,
+      `site-methods:${method.category}`,
+      prewarmSiteMethodTranslations(env.DB, env.AI, method.category)
+    )
     return json({ ok: true })
   }
 
   if (request.method === 'DELETE' && pathname.startsWith('/api/admin/site-methods/')) {
     const id = Number(pathname.slice('/api/admin/site-methods/'.length))
     if (!Number.isInteger(id) || id < 1) return json({ error: '方式 ID 无效。' }, 400)
+    const existing = await env.DB.prepare('SELECT category FROM site_methods WHERE id = ?').bind(id).first<{ category: string }>()
     await env.DB.prepare('DELETE FROM site_methods WHERE id = ?').bind(id).run()
+    if (existing?.category) {
+      scheduleTranslationPrewarm(
+        ctx,
+        `site-methods:${existing.category}`,
+        prewarmSiteMethodTranslations(env.DB, env.AI, existing.category)
+      )
+    }
     return json({ ok: true })
   }
 
@@ -834,7 +902,10 @@ async function handleApi(request: Request, env: Env, pathname: string) {
     }
     if (updatedAt < publishedAt) return json({ error: '更新日期不能早于发布日期。' }, 400)
 
+    let previousSlug = ''
     if (body.id) {
+      const previous = await env.DB.prepare('SELECT slug FROM projects WHERE id = ?').bind(Number(body.id)).first<{ slug: string }>()
+      previousSlug = previous?.slug || ''
       await env.DB.prepare(
         `UPDATE projects SET slug = ?, tag = ?, title = ?, description = ?, markdown = ?,
           is_published = ?, published_at = ?, updated_at = ? WHERE id = ?`
@@ -846,13 +917,26 @@ async function handleApi(request: Request, env: Env, pathname: string) {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(slug, tag, title, description, markdown, published, publishedAt, updatedAt).run()
     }
+    if (previousSlug && previousSlug !== slug) {
+      await env.DB.prepare(
+        `DELETE FROM translation_cache WHERE scope = 'project-detail' AND source_key = ?`
+      ).bind(previousSlug).run()
+    }
+    scheduleTranslationPrewarm(ctx, `projects:${slug}`, prewarmProjectTranslations(env.DB, env.AI, slug))
     return json({ ok: true })
   }
 
   if (request.method === 'DELETE' && pathname.startsWith('/api/admin/projects/')) {
     const id = Number(pathname.slice('/api/admin/projects/'.length))
     if (!Number.isInteger(id) || id < 1) return json({ error: '项目 ID 无效。' }, 400)
+    const existing = await env.DB.prepare('SELECT slug FROM projects WHERE id = ?').bind(id).first<{ slug: string }>()
     await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(id).run()
+    if (existing?.slug) {
+      await env.DB.prepare(
+        `DELETE FROM translation_cache WHERE scope = 'project-detail' AND source_key = ?`
+      ).bind(existing.slug).run()
+    }
+    scheduleTranslationPrewarm(ctx, 'projects:list', prewarmProjectTranslations(env.DB, env.AI))
     return json({ ok: true })
   }
 
@@ -883,12 +967,12 @@ async function renderPage(renderUrl: string, request: Request, env: Env, origin:
 }
 
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     const pathname = url.pathname
 
     try {
-      if (pathname.startsWith('/api/')) return await handleApi(request, env, pathname)
+      if (pathname.startsWith('/api/')) return await handleApi(request, env, pathname, ctx)
 
       if (/\.[a-zA-Z0-9]+$/.test(pathname)) return env.ASSETS.fetch(request)
 

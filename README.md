@@ -93,7 +93,7 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 5. 联系方式和捐助方式在两个独立分组中管理；使用每张卡片左侧把手，只能在当前分组内拖动排序。
 6. 方式编辑页可搜索并选择 Font Awesome 的全部免费图标，自定义下拉框不会调用浏览器原生弹层，表单下方会实时预览公开页面效果。
 7. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
-8. 关于页面、项目文章、联系方式与捐助方式都只维护简体中文源内容。访客选择繁体中文、英语或日语后，`@cf/meta/llama-3.1-8b-instruct-fast` 才会翻译当前公开内容；翻译结果经过结构校验并缓存到 D1，源内容修改后缓存会自动失效。
+8. 关于页面、项目文章、联系方式与捐助方式都只维护简体中文源内容。部署完成后会通过线上 Worker 预热繁体中文、英语和日语缓存；管理端保存内容后也会在响应返回后后台刷新相关翻译。翻译结果经过结构校验并缓存到 D1，源内容修改后缓存会自动失效，访客遇到冷缓存时仍有同步翻译兜底。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
 
@@ -126,6 +126,8 @@ npm run deploy
 ```
 
 `migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面内容以及项目发布日期字段；`migrations/0006_on_demand_translation_cache.sql` 会清理旧的非简体中文关于页副本，并建立按需翻译缓存。`wrangler.jsonc` 已声明 `AI` binding，不需要额外提供模型 API Key。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
+
+`npm run deploy` 会先构建并部署 Worker，再运行 `scripts/prewarm-translations.ts` 请求线上公开接口；AI 调用始终发生在已部署的 Worker 内。Cloudflare Workers Builds 的 Deploy command 应设置为 `npm run deploy`，才能让 GitHub 后续每次推送都自动执行同一流程。自定义域名变化时，可通过 `MEIKEN_SITE_URL=https://你的域名 npm run translations:prewarm` 指定预热地址。
 
 公开内容翻译使用 Cloudflare Workers AI 的免费额度。额度耗尽或模型暂时不可用时，语言切换器会明确提示失败并继续显示简体中文，不会改写源内容。相同源内容和语言会直接复用 D1 缓存。
 
