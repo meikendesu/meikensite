@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import TurnstileWidget from '../components/TurnstileWidget.vue'
 import { adminApi } from '../data/adminApi'
 import { beginPageLoading } from '../data/pageLoading'
 import type { AdminSession, Project, SiteMethod, SiteMethodCategory } from '../types'
@@ -13,6 +14,10 @@ const error = ref('')
 const projects = ref<Project[]>([])
 const siteMethods = ref<SiteMethod[]>([])
 const loginPassword = ref('')
+const turnstileToken = ref('')
+const turnstileWidget = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const loginSubmitting = ref(false)
+const TURNSTILE_SITE_KEY = '0x4AAAAAAESUPQBRhDhcPH_1'
 const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const methodGroups = [
   { category: 'contact', title: '联系方式', icon: 'fa-solid fa-address-book', empty: '暂无联系方式。' },
@@ -38,16 +43,27 @@ async function checkSession() {
 
 async function login() {
   clearMessages()
+  if (!turnstileToken.value) {
+    error.value = '请先完成人机验证。'
+    return
+  }
+  loginSubmitting.value = true
   try {
     const data = await adminApi<AdminSession>('/api/admin/login', {
       method: 'POST',
-      body: JSON.stringify({ password: loginPassword.value })
+      body: JSON.stringify({ password: loginPassword.value, turnstileToken: turnstileToken.value })
     })
     loginPassword.value = ''
     status.value = data.mustChangePassword ? 'change-password' : 'ready'
     if (!data.mustChangePassword) await loadAdminData()
   } catch (requestError) {
     error.value = requestError.message
+  } finally {
+    loginSubmitting.value = false
+    if (status.value === 'login') {
+      turnstileToken.value = ''
+      turnstileWidget.value?.reset()
+    }
   }
 }
 
@@ -228,7 +244,17 @@ onMounted(async () => {
       <h2>管理员登录</h2>
       <p>首次登录密码为 <code>123456</code>，登录后必须立即修改。</p>
       <label>密码<input v-model="loginPassword" type="password" autocomplete="current-password" required /></label>
-      <button class="admin-primary" type="submit">登录</button>
+      <TurnstileWidget
+        ref="turnstileWidget"
+        :site-key="TURNSTILE_SITE_KEY"
+        action="admin_login"
+        @verified="turnstileToken = $event"
+        @expired="turnstileToken = ''"
+        @error="error = '人机验证加载失败，请刷新后重试。'"
+      />
+      <button class="admin-primary" type="submit" :disabled="loginSubmitting || !turnstileToken">
+        {{ loginSubmitting ? '正在验证…' : '登录' }}
+      </button>
     </form>
 
     <form v-else-if="status === 'change-password'" class="admin-panel auth-panel" @submit.prevent="changePassword">

@@ -90,7 +90,7 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 
 进入登录页后：
 
-1. 使用初始密码 `123456` 登录。
+1. 完成 Cloudflare Turnstile 人机验证，再使用初始密码 `123456` 登录。
 2. 首次登录会被强制要求设置至少 8 个字符的新密码。
 3. 新建或编辑项目必须填写发布日期和更新日期；内置 Markdown 工具栏支持标题、粗体、斜体、链接、列表、引用和代码，并同步显示实时预览。
 4. 勾选“公开发布”后保存，文章会出现在 `/projects`。
@@ -100,6 +100,8 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 8. 关于页面、项目文章、联系方式与捐助方式都只维护简体中文源内容。繁体中文由 Worker 使用 OpenCC 台湾词汇表即时转换；英语和日语由 Workers AI 的 Qwen3 30B 翻译并缓存到 D1。部署完成后会通过线上 Worker 预热缓存；管理端保存内容后也会在响应返回后后台刷新相关翻译。翻译结果经过结构校验，源内容或翻译版本修改后缓存会自动失效，访客遇到冷缓存时仍有同步翻译兜底。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
+
+管理员登录还会在 Worker 内调用 Turnstile Siteverify，并严格校验 `success`、`admin_login` action 和部署环境允许的 hostname。生产密钥存储为 Worker secret `TURNSTILE_SECRET`，不会提交到仓库；生产 hostname 通过 `TURNSTILE_HOSTNAMES=983765.xyz` 固定，本地开发则在 `.dev.vars` 中使用 `localhost,127.0.0.1`。
 
 ## 添加并部署 Cloudflare D1
 

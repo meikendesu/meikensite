@@ -21,7 +21,11 @@ const TARGET_LOCALES: Locale[] = ['zh-TW', 'en', 'ja']
 const encoder = new TextEncoder()
 const convertToTraditionalTaiwan = ConverterFactory(openccFrom.cn, openccTo.twp)
 
-type WorkerEnv = Env & { ADMIN_ENTRY_KEY?: string }
+type WorkerEnv = Env & {
+  ADMIN_ENTRY_KEY?: string
+  TURNSTILE_SECRET?: string
+  TURNSTILE_HOSTNAMES?: string
+}
 type TimingSafeSubtleCrypto = SubtleCrypto & {
   timingSafeEqual(a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView): boolean
 }
@@ -328,6 +332,47 @@ function hasSameTranslationShape(source: unknown, translated: unknown): boolean 
     )
   }
   return source === translated
+}
+
+interface TurnstileVerification {
+  success?: boolean
+  action?: string
+  hostname?: string
+}
+
+export async function verifyTurnstileToken(request: Request, env: Env, token: unknown, expectedAction: string) {
+  const workerEnv = env as WorkerEnv
+  const secret = String(workerEnv.TURNSTILE_SECRET || '')
+  const expectedHostnames = new Set(
+    String(workerEnv.TURNSTILE_HOSTNAMES || '')
+      .split(',')
+      .map((hostname) => hostname.trim())
+      .filter(Boolean)
+  )
+  if (typeof token !== 'string' || token.length === 0 || token.length > 2048 || !secret || expectedHostnames.size === 0) {
+    return false
+  }
+
+  const body = new URLSearchParams({ secret, response: token })
+  const remoteIp = request.headers.get('cf-connecting-ip')
+  if (remoteIp) body.set('remoteip', remoteIp)
+
+  try {
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(10000)
+    })
+    if (!response.ok) return false
+    const result = await response.json<TurnstileVerification>()
+    return result.success === true
+      && result.action === expectedAction
+      && typeof result.hostname === 'string'
+      && expectedHostnames.has(result.hostname)
+  } catch {
+    return false
+  }
 }
 
 function convertTranslationValueToTraditional(value: TranslationValue): TranslationValue {
@@ -749,7 +794,10 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
   if (request.method === 'POST' && pathname === '/api/admin/login') {
     if (!await hasAdminGate(request, env)) return json({ error: '接口不存在。' }, 404)
     await ensureAdmin(env.DB)
-    const { password = '' } = await readJson(request)
+    const { password = '', turnstileToken = '' } = await readJson(request)
+    if (!await verifyTurnstileToken(request, env, turnstileToken, 'admin_login')) {
+      return json({ error: '人机验证失败，请重试。' }, 403)
+    }
     const ipHash = await sha256(request.headers.get('cf-connecting-ip') || 'local-development')
     const attempts = await env.DB.prepare(
       `SELECT COUNT(*) AS count FROM admin_login_attempts

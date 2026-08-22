@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import worker from '../worker'
+import worker, { verifyTurnstileToken } from '../worker'
 import { prewarmTranslations } from './prewarm-translations'
 
 const origin = 'https://local.test'
@@ -127,6 +127,7 @@ const mockAi = {
 } as unknown as Ai
 
 const env: Env = {
+  TURNSTILE_HOSTNAMES: '983765.xyz',
   // 使用最小的本地 binding 替身调用 Worker，无需连接 Cloudflare 或真实 D1。
   ASSETS: {
     async fetch(input) {
@@ -145,6 +146,26 @@ const env: Env = {
   // D1 替身包含一条项目、关于页、联系方式和内存翻译缓存。
   DB: mockDb
 }
+
+const originalFetch = globalThis.fetch
+const turnstileRequests: URLSearchParams[] = []
+globalThis.fetch = (async (_input, init) => {
+  turnstileRequests.push(new URLSearchParams(String(init?.body || '')))
+  return Response.json({ success: true, action: 'admin_login', hostname: '983765.xyz' })
+}) as typeof fetch
+const turnstileEnv = { ...env, TURNSTILE_SECRET: 'local-test-secret' } as Env
+const turnstileRequest = new Request('https://983765.xyz/api/admin/login', {
+  headers: { 'cf-connecting-ip': '203.0.113.10' }
+})
+assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, 'valid-test-token', 'admin_login'), true, 'Turnstile 正常结果应通过')
+assert.equal(turnstileRequests[0]?.get('secret'), 'local-test-secret', 'Siteverify 应提交 Worker secret')
+assert.equal(turnstileRequests[0]?.get('remoteip'), '203.0.113.10', 'Siteverify 应提交访客 IP')
+globalThis.fetch = (async () => Response.json({ success: true, action: 'other_action', hostname: '983765.xyz' })) as typeof fetch
+assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, 'wrong-action-token', 'admin_login'), false, 'Turnstile action 不匹配应拒绝')
+globalThis.fetch = (async () => Response.json({ success: true, action: 'admin_login', hostname: 'attacker.example' })) as typeof fetch
+assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, 'wrong-host-token', 'admin_login'), false, 'Turnstile hostname 不匹配应拒绝')
+assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, '', 'admin_login'), false, '缺少 Turnstile token 应拒绝')
+globalThis.fetch = originalFetch
 
 async function request(pathname) {
   return worker.fetch(
@@ -266,6 +287,7 @@ assert.ok(prewarmRequests.includes('/api/projects/wawawa?locale=ja'), '预热应
 assert.ok(prewarmRequests.includes('/api/site-methods?category=donation&locale=en'), '预热应覆盖捐助方式')
 
 console.log('✓ 已知路由返回 SSR 200')
+console.log('✓ Turnstile 校验要求正确 action、hostname、token 与 Worker secret')
 console.log('✓ 项目列表与项目详情均不再包含下载入口')
 console.log('✓ 界面、关于、项目列表、项目文章和捐助说明按语言翻译并命中缓存')
 console.log('✓ 繁体中文使用 OpenCC 台湾词汇转换且不调用 AI')

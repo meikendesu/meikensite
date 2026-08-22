@@ -60,7 +60,6 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
     title: '请我喝一杯咖啡吧。',
     heroCopy: '每一份小小的支持，都会变成持续做下去的能量。',
     showQr: '展示二维码',
-    modalHint: '打开对应应用扫描二维码赞赏',
     paymentMethods: '捐助方式',
     methodUnset: '收款信息尚未填写。',
     addressCopied: '地址已复制。',

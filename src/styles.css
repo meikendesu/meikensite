@@ -130,7 +130,7 @@ html {
 }
 
 body {
-  @apply m-0 min-h-screen min-w-80 text-ink;
+  @apply m-0 min-h-screen min-w-0 overflow-x-hidden text-ink;
   background:
     radial-gradient(circle at 96% 1%, rgba(0, 122, 255, 0.07) 0, transparent 34%),
     radial-gradient(circle at 4% 23%, rgba(0, 122, 255, 0.05) 0, transparent 32%),
@@ -569,15 +569,18 @@ button {
   line-height: 1.6;
 }
 .payment-list {
-  @apply grid gap-3.5;
+  @apply grid w-full min-w-0 gap-3.5;
 }
 .payment-card {
-  @apply rounded-card border border-separator bg-panel p-[18px] shadow-panel;
+  @apply w-full min-w-0 max-w-full overflow-hidden rounded-card border border-separator bg-panel p-[18px] shadow-panel;
   -webkit-backdrop-filter: blur(22px) saturate(180%);
   backdrop-filter: blur(22px) saturate(180%);
 }
 .payment-heading {
-  @apply flex items-center gap-3 pb-[18px];
+  @apply flex min-w-0 items-center gap-3 pb-[18px];
+}
+.payment-heading > div {
+  min-width: 0;
 }
 .payment-icon {
   @apply grid size-[42px] place-items-center rounded-xl text-[22px];
@@ -594,6 +597,7 @@ button {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .usdt .payment-icon {
   background: rgba(0, 147, 147, 0.16);
@@ -632,9 +636,10 @@ button {
   margin-right: 4px;
 }
 .wallet-line {
-  @apply mb-3 flex items-center gap-2 rounded-lg bg-fill px-2.5 py-[9px];
+  @apply mb-3 flex w-full min-w-0 max-w-full items-center gap-2 rounded-lg bg-fill px-2.5 py-[9px];
 }
 .wallet-line code {
+  min-width: 0;
   overflow: hidden;
   flex: 1;
   color: var(--label-1);
@@ -1079,31 +1084,6 @@ button {
   font-size: 17px;
   font-weight: 700;
 }
-.qr-modal-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-.qr-modal-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--fill);
-  color: var(--ink);
-  font-size: 16px;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  line-height: 1;
-  transition: background 0.15s;
-}
-.qr-modal-close:hover {
-  background: var(--separator);
-}
 @keyframes qr-pop {
   from {
     opacity: 0;
@@ -1170,6 +1150,9 @@ button {
 }
 .auth-panel {
   @apply mx-auto my-[60px] w-full max-w-[440px];
+}
+.turnstile-widget {
+  @apply mb-4 min-h-[65px] overflow-hidden;
 }
 .admin-panel label {
   @apply mb-4 grid gap-[7px] text-[13px] font-semibold text-muted;

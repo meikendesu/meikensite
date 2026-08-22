@@ -81,10 +81,8 @@ onBeforeUnmount(() => {
 
     <div v-if="activeQr" class="qr-modal" role="dialog" aria-modal="true" @click.self="activeQr = null">
       <div class="qr-modal-box">
-        <button class="qr-modal-close" type="button" :aria-label="t('common.close')" @click="activeQr = null"><i class="fa-solid fa-xmark"></i></button>
         <img class="qr-modal-img" :src="`/api/site-methods/${activeQr.id}/qr`" :alt="`${activeQr.name} ${t('support.qrCode')}`" />
         <p class="qr-modal-title">{{ activeQr.name }}</p>
-        <p class="qr-modal-hint">{{ t('support.modalHint') }}</p>
       </div>
     </div>
     <div class="support-note" :class="{ show }" role="status" aria-live="polite">{{ note }}</div>

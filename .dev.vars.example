@@ -1,2 +1,4 @@
 # 本地后台私有入口密钥。请复制为 .dev.vars 并替换成足够长的随机值。
 ADMIN_ENTRY_KEY=replace-with-a-long-random-entry-key
+TURNSTILE_SECRET=replace-with-your-existing-widget-secret
+TURNSTILE_HOSTNAMES=localhost,127.0.0.1
