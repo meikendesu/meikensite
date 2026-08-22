@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "tsx scripts/generate-icon-catalog.ts",
+    "fonts:update": "tsx scripts/download-noto-fonts.ts",
     "dev": "vite",
     "dev:worker": "npm run build && wrangler dev",
     "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.ts --outDir dist/server",

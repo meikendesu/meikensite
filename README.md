@@ -18,6 +18,7 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和�
 - Cloudflare D1（项目文章、管理员密码哈希、登录会话）
 - Markdown It（安全模式，不执行文章中的原始 HTML）
 - Font Awesome Free 7（本地依赖，不再依赖第三方 CDN）
+- Noto Sans 可变字体（英文单文件 + 中日韩统一 Noto Sans CJK 单文件，本地 WOFF2）
 
 ## 主要目录
 
@@ -30,13 +31,15 @@ meikensite/
 │   ├── entry-client.ts     # 浏览器 hydration 入口
 │   ├── entry-server.ts     # SSR 入口
 │   ├── router.ts           # 页面路由与按需拆包
+│   ├── fonts.css           # Noto Sans 与 Noto Sans CJK 单文件字体声明
 │   ├── styles.css          # Tailwind 入口、设计令牌与语义组件层
+│   ├── assets/fonts/noto/  # 本地 Noto Sans 可变 WOFF2 字体与许可证
 │   ├── data/projects.ts    # 项目数据 store / API 客户端
 │   ├── data/freeFontAwesomeIcons.ts # 构建前自动生成的免费图标目录
 │   ├── components/         # 自定义下拉框、图标选择器等复用组件
 │   └── views/              # 公开页面、Admin 列表与独立编辑页面
-├── scripts/                # 图标目录生成、Worker 回归验证
-└── public/                 # 字体等静态资源
+├── scripts/                # 字体/图标更新、Worker 回归验证
+└── public/                 # 无需打包转换的静态资源
 ```
 
 ## 常用命令
@@ -45,6 +48,7 @@ meikensite/
 npm install
 npm run dev                 # 仅启动 Vite 客户端，不包含 Worker API
 npm run typecheck           # 生成 Worker 绑定类型并检查全部 TypeScript/Vue 文件
+npm run fonts:update        # 从官方在线源更新两个本地 Noto 可变 WOFF2 字体
 npm run build               # 更新免费图标目录并产出 dist/client 与 dist/server
 npm run verify:worker       # 构建并执行 SSR、错误页和静态资源回归检查
 npm run preview             # 预览 dist/client

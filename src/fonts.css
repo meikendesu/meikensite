@@ -1,0 +1,18 @@
+/* Noto Sans 英文可变字体：Google Fonts，100–900。 */
+@font-face {
+  font-family: "Noto Sans";
+  src: url("./assets/fonts/noto/NotoSans-VF.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-display: swap;
+}
+
+/* Noto Sans CJK 中日韩统一可变字体：Noto 官方仓库，400–900。 */
+@font-face {
+  font-family: "Noto Sans CJK";
+  src: url("./assets/fonts/noto/NotoSansCJK-VF.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+}
