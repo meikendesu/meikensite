@@ -107,6 +107,8 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 
 管理员登录还会在 Worker 内调用 Turnstile Siteverify，并严格校验 `success`、`admin_login` action 和部署环境允许的 hostname。生产密钥存储为 Worker secret `TURNSTILE_SECRET`，不会提交到仓库；生产 hostname 通过 `TURNSTILE_HOSTNAMES=983765.xyz` 固定，本地开发则在 `.dev.vars` 中使用 `localhost,127.0.0.1`。
 
+公开页面首次访问时也会先显示独立的 Turnstile 验证页。Worker 在 Siteverify 严格校验 `site_access` action 与 hostname 后签发最长 24 小时的加密签名 `HttpOnly` Cookie；验证前不会执行或返回 Vue SSR 页面内容。静态资源和公开内容 API 不经过页面门禁，以保证验证组件资源、翻译预热与部署流程正常；后台继续使用私有入口和登录 Turnstile，不重复显示全站验证。
+
 ## 添加并部署 Cloudflare D1
 
 先登录 Cloudflare，并创建生产数据库：

@@ -165,12 +165,33 @@ assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, 'wrong-a
 globalThis.fetch = (async () => Response.json({ success: true, action: 'admin_login', hostname: 'attacker.example' })) as typeof fetch
 assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, 'wrong-host-token', 'admin_login'), false, 'Turnstile hostname 不匹配应拒绝')
 assert.equal(await verifyTurnstileToken(turnstileRequest, turnstileEnv, '', 'admin_login'), false, '缺少 Turnstile token 应拒绝')
+globalThis.fetch = (async () => Response.json({ success: true, action: 'site_access', hostname: '983765.xyz' })) as typeof fetch
+const siteAccessResponse = await worker.fetch(
+  new Request(`${origin}/api/site/access`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'cf-connecting-ip': '203.0.113.10',
+      origin
+    },
+    body: JSON.stringify({ turnstileToken: 'valid-site-token' })
+  }),
+  turnstileEnv,
+  {} as ExecutionContext
+)
+assert.equal(siteAccessResponse.status, 200, '全站 Turnstile 验证应成功')
+const siteGateSetCookie = siteAccessResponse.headers.get('set-cookie') || ''
+assert.match(siteGateSetCookie, /^meiken_site_gate=/, '全站验证应签发 HttpOnly 门禁 Cookie')
+assert.match(siteGateSetCookie, /HttpOnly/, '全站门禁 Cookie 不应暴露给客户端脚本')
+const siteGateCookie = siteGateSetCookie.split(';')[0]
 globalThis.fetch = originalFetch
 
-async function request(pathname) {
+async function request(pathname, includeSiteGate = true, cookie = siteGateCookie) {
+  const headers = new Headers({ 'accept-language': 'zh-CN' })
+  if (includeSiteGate) headers.set('cookie', cookie)
   return worker.fetch(
-    new Request(`${origin}${pathname}`, { headers: { 'accept-language': 'zh-CN' } }),
-    env,
+    new Request(`${origin}${pathname}`, { headers }),
+    turnstileEnv,
     {} as ExecutionContext
   )
 }
@@ -182,6 +203,18 @@ async function assertErrorPage(pathname, expectedStatus, expectedCode) {
   assert.match(response.headers.get('content-type') || '', /^text\/html/i, `${pathname} Content-Type`)
   assert.match(body, new RegExp(`<p class="error-code">${expectedCode}</p>`), `${pathname} 错误页`)
 }
+
+const challenge = await request('/', false)
+const challengeBody = await challenge.text()
+assert.equal(challenge.status, 200, '未验证首访应返回验证页')
+assert.match(challengeBody, /请先完成人机验证/, '验证页应显示明确提示')
+assert.match(challengeBody, /action:'site_access'/, '验证页应使用独立 Turnstile action')
+assert.doesNotMatch(challengeBody, /<div id="app">/, '验证前不应返回 Vue SSR 内容')
+assert.match(challenge.headers.get('cache-control') || '', /no-store/, '验证页不应缓存')
+
+const tamperedGate = `${siteGateCookie.slice(0, -1)}${siteGateCookie.endsWith('A') ? 'B' : 'A'}`
+const tamperedResponse = await request('/', true, tamperedGate)
+assert.match(await tamperedResponse.text(), /请先完成人机验证/, '被篡改的门禁 Cookie 应被拒绝')
 
 const home = await request('/')
 assert.equal(home.status, 200, '已知路由状态码')
@@ -256,7 +289,7 @@ for (const [pathname, expectedText] of [
   ['/admin/methods/new', '正在加载表单'],
   ['/admin/methods/1/edit', '正在加载表单']
 ]) {
-  const response = await request(pathname)
+  const response = await request(pathname, false)
   assert.equal(response.status, 404, `${pathname} 未授权状态码`)
   assert.match(await response.text(), new RegExp(expectedText), `${pathname} SSR 内容`)
 }
@@ -265,7 +298,7 @@ await assertErrorPage('/route-that-does-not-exist', 404, 404)
 await assertErrorPage('/500', 500, 500)
 await assertErrorPage('/projects/%E0%A4%A', 500, 500)
 
-const asset = await request('/fonts/verify.woff2')
+const asset = await request('/fonts/verify.woff2', false)
 assert.equal(asset.status, 206, '静态资源回退状态码')
 assert.equal(await asset.text(), 'static asset fallback', '静态资源回退响应')
 
@@ -288,6 +321,7 @@ assert.ok(prewarmRequests.includes('/api/site-methods?category=donation&locale=e
 
 console.log('✓ 已知路由返回 SSR 200')
 console.log('✓ Turnstile 校验要求正确 action、hostname、token 与 Worker secret')
+console.log('✓ 公开页面在 Turnstile 验证前不返回 SSR 内容，验证后使用签名 HttpOnly Cookie 放行')
 console.log('✓ 项目列表与项目详情均不再包含下载入口')
 console.log('✓ 界面、关于、项目列表、项目文章和捐助说明按语言翻译并命中缓存')
 console.log('✓ 繁体中文使用 OpenCC 台湾词汇转换且不调用 AI')

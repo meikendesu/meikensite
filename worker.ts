@@ -12,9 +12,12 @@ const INITIAL_PASSWORD = '123456'
 const PASSWORD_ITERATIONS = 100000
 const SESSION_COOKIE = 'meiken_admin_session'
 const ADMIN_GATE_COOKIE = 'meiken_admin_gate'
+const SITE_GATE_COOKIE = 'meiken_site_gate'
 const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 const ADMIN_GATE_MAX_AGE = 60 * 60 * 12
+const SITE_GATE_MAX_AGE = 60 * 60 * 24
 const MAX_JSON_BYTES = 512 * 1024
+const TURNSTILE_SITE_KEY = '0x4AAAAAAESUPQBRhDhcPH_1'
 const TRANSLATION_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8' as const
 const SUPPORTED_LOCALES: Locale[] = ['zh-CN', 'zh-TW', 'en', 'ja']
 const TARGET_LOCALES: Locale[] = ['zh-TW', 'en', 'ja']
@@ -123,6 +126,64 @@ function sessionCookie(token, request, maxAge = SESSION_MAX_AGE) {
 function adminGateCookie(token: string, request: Request, maxAge = ADMIN_GATE_MAX_AGE) {
   const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : ''
   return `${ADMIN_GATE_COOKIE}=${token}; Path=/; HttpOnly${secure}; SameSite=Strict; Max-Age=${maxAge}`
+}
+
+function siteGateCookie(token: string, request: Request, maxAge = SITE_GATE_MAX_AGE) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : ''
+  return `${SITE_GATE_COOKIE}=${token}; Path=/; HttpOnly${secure}; SameSite=Strict; Max-Age=${maxAge}`
+}
+
+function turnstileSecret(env: Env) {
+  return String((env as WorkerEnv).TURNSTILE_SECRET || '')
+}
+
+async function hmacSha256(value: string, secret: string) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  return toBase64(new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(value))))
+}
+
+async function verifyHmacSha256(value: string, signature: string, secret: string) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify']
+  )
+  const binary = atob(signature)
+  const signatureBytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  return crypto.subtle.verify('HMAC', key, signatureBytes, encoder.encode(value))
+}
+
+async function createSiteGateToken(env: Env) {
+  const secret = turnstileSecret(env)
+  if (!secret) return ''
+  const expiresAt = Math.floor(Date.now() / 1000) + SITE_GATE_MAX_AGE
+  const payload = `${expiresAt}.${randomBase64(24)}`
+  const signature = await hmacSha256(payload, `meiken-site-gate:${secret}`)
+  return `${payload}.${signature}`
+}
+
+async function hasSiteGate(request: Request, env: Env) {
+  const token = getCookie(request, SITE_GATE_COOKIE)
+  const secret = turnstileSecret(env)
+  if (!token || !secret || token.length > 256) return false
+  const [expiresAtValue, nonce, signature, ...extra] = token.split('.')
+  const expiresAt = Number(expiresAtValue)
+  if (extra.length > 0 || !nonce || !signature || !Number.isInteger(expiresAt) || expiresAt <= Date.now() / 1000) {
+    return false
+  }
+  try {
+    return await verifyHmacSha256(`${expiresAtValue}.${nonce}`, signature, `meiken-site-gate:${secret}`)
+  } catch {
+    return false
+  }
 }
 
 function adminEntryKey(env: Env) {
@@ -342,7 +403,7 @@ interface TurnstileVerification {
 
 export async function verifyTurnstileToken(request: Request, env: Env, token: unknown, expectedAction: string) {
   const workerEnv = env as WorkerEnv
-  const secret = String(workerEnv.TURNSTILE_SECRET || '')
+  const secret = turnstileSecret(env)
   const expectedHostnames = new Set(
     String(workerEnv.TURNSTILE_HOSTNAMES || '')
       .split(',')
@@ -664,6 +725,17 @@ function validateSiteMethod(body: Record<string, unknown>) {
 }
 
 async function handleApi(request: Request, env: Env, pathname: string, ctx: ExecutionContext) {
+  if (request.method === 'POST' && pathname === '/api/site/access') {
+    if (!assertSameOrigin(request)) return json({ error: '请求来源无效。' }, 403)
+    const { turnstileToken = '' } = await readJson(request)
+    if (!await verifyTurnstileToken(request, env, turnstileToken, 'site_access')) {
+      return json({ error: '人机验证失败，请重试。' }, 403)
+    }
+    const gateToken = await createSiteGateToken(env)
+    if (!gateToken) return json({ error: '人机验证服务尚未配置。' }, 503)
+    return json({ ok: true }, 200, { 'set-cookie': siteGateCookie(gateToken, request) })
+  }
+
   if (!env.DB) return json({ error: 'D1 数据库尚未绑定。' }, 503)
   const requestUrl = new URL(request.url)
 
@@ -1051,6 +1123,62 @@ async function renderPage(renderUrl: string, request: Request, env: Env, origin:
   })
 }
 
+function renderSiteChallenge() {
+  const siteKey = JSON.stringify(TURNSTILE_SITE_KEY)
+  return new Response(`<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>访问验证 · MEIKEN</title>
+  <style>
+    :root{color-scheme:light dark;font-family:"Noto Sans CJK","Noto Sans",system-ui,sans-serif;background:#0f1218;color:#f5f7fb}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 10%,#1b3555 0,#121923 36%,#0f1218 72%)}
+    main{width:min(100%,430px);padding:36px 28px;border:1px solid rgba(255,255,255,.12);border-radius:28px;background:rgba(27,31,39,.9);box-shadow:0 24px 80px rgba(0,0,0,.35);text-align:center;backdrop-filter:blur(18px)}
+    .mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 22px;border-radius:20px;background:#1688f8;color:white;font-size:25px;font-weight:800;letter-spacing:-.08em;box-shadow:0 12px 32px rgba(22,136,248,.3)}
+    h1{margin:0;font-size:clamp(25px,7vw,32px);line-height:1.2}p{margin:12px 0 24px;color:#aeb8c8;line-height:1.7}.widget{min-height:65px;display:flex;justify-content:center;align-items:center}.status{min-height:24px;margin:20px 0 0;font-size:14px;color:#8ca4c2}.status[data-error="true"]{color:#ff9d9d}
+    noscript{display:block;margin-top:18px;color:#ff9d9d;font-size:14px}@media(max-width:420px){body{padding:16px}main{padding:30px 18px;border-radius:24px}}
+  </style>
+  <script>
+    window.onSiteChallengeReady=function(){
+      var status=document.getElementById('challenge-status');
+      var widgetId=window.turnstile.render('#site-challenge',{sitekey:${siteKey},action:'site_access',theme:'dark',callback:async function(token){
+        status.dataset.error='false';status.textContent='验证成功，正在进入网站…';
+        try{
+          var response=await fetch('/api/site/access',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({turnstileToken:token})});
+          if(!response.ok)throw new Error('verification failed');
+          window.location.reload();
+        }catch(error){
+          status.dataset.error='true';status.textContent='验证失败，请重试。';window.turnstile.reset(widgetId);
+        }
+      },'expired-callback':function(){status.dataset.error='true';status.textContent='验证已过期，请重试。';},'error-callback':function(){status.dataset.error='true';status.textContent='验证组件加载失败，请刷新页面。';}});
+    };
+  </script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&amp;onload=onSiteChallengeReady" async defer></script>
+</head>
+<body>
+  <main aria-labelledby="challenge-title">
+    <div class="mark" aria-hidden="true">MK</div>
+    <h1 id="challenge-title">请先完成人机验证</h1>
+    <p>验证通过后将自动加载网站内容。</p>
+    <div id="site-challenge" class="widget" aria-label="Cloudflare 人机验证"></div>
+    <div id="challenge-status" class="status" role="status" aria-live="polite">正在加载验证组件…</div>
+    <noscript>请启用 JavaScript 后刷新页面。</noscript>
+  </main>
+</body>
+</html>`, {
+    status: 200,
+    headers: {
+      'content-type': 'text/html;charset=UTF-8',
+      'cache-control': 'private, no-store',
+      'content-security-policy': "default-src 'none'; script-src 'unsafe-inline' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+      'referrer-policy': 'no-referrer',
+      'x-content-type-options': 'nosniff'
+    }
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
@@ -1061,7 +1189,10 @@ export default {
 
       if (/\.[a-zA-Z0-9]+$/.test(pathname)) return env.ASSETS.fetch(request)
 
-      const adminStatus = pathname === '/admin' || pathname.startsWith('/admin/')
+      const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/')
+      if (!isAdminPath && !await hasSiteGate(request, env)) return renderSiteChallenge()
+
+      const adminStatus = isAdminPath
         ? (await hasAdminPageAccess(request, env) ? undefined : 404)
         : undefined
       return await renderPage(pathname + url.search, request, env, url.origin, adminStatus)
