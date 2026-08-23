@@ -212,6 +212,10 @@ assert.match(challengeBody, /action:'site_access'/, '验证页应使用独立 Tu
 assert.doesNotMatch(challengeBody, /<div id="app">/, '验证前不应返回 Vue SSR 内容')
 assert.match(challenge.headers.get('cache-control') || '', /no-store/, '验证页不应缓存')
 
+const directIndex = await request('/index.html', false)
+assert.equal(directIndex.status, 308, '直接访问 index.html 应重定向到受保护首页')
+assert.equal(directIndex.headers.get('location'), `${origin}/`, 'index.html 重定向目标应为首页')
+
 const tamperedGate = `${siteGateCookie.slice(0, -1)}${siteGateCookie.endsWith('A') ? 'B' : 'A'}`
 const tamperedResponse = await request('/', true, tamperedGate)
 assert.match(await tamperedResponse.text(), /请先完成人机验证/, '被篡改的门禁 Cookie 应被拒绝')

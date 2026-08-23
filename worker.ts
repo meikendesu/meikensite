@@ -1187,6 +1187,8 @@ export default {
     try {
       if (pathname.startsWith('/api/')) return await handleApi(request, env, pathname, ctx)
 
+      if (pathname === '/index.html') return Response.redirect(`${url.origin}/${url.search}`, 308)
+
       if (/\.[a-zA-Z0-9]+$/.test(pathname)) return env.ASSETS.fetch(request)
 
       const isAdminPath = pathname === '/admin' || pathname.startsWith('/admin/')
