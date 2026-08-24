@@ -70,6 +70,13 @@ const translationCache = new Map<string, { sourceHash: string; translatedJson: s
 const executableBody = new TextEncoder().encode('mock-apk-download')
 const coverBody = new TextEncoder().encode('mock-cover-image')
 
+function selectedProjectRow(sql: string) {
+  const selectClause = sql.slice(0, sql.indexOf('FROM projects'))
+  return Object.fromEntries(
+    Object.entries(projectRow).filter(([column]) => new RegExp(`\\b${column}\\b`).test(selectClause))
+  )
+}
+
 function projectRowForSsr() {
   return {
     id: projectRow.id,
@@ -146,12 +153,17 @@ function statement(sql: string) {
           ? { objectKey: projectRow.executable_object_key, fileName: projectRow.executable_file_name }
           : null
       }
-      if (sql.includes('FROM projects WHERE slug = ?')) return params[0] === projectRow.slug ? projectRow : null
+      if (sql.includes('FROM projects WHERE slug = ?')) {
+        return params[0] === projectRow.slug ? selectedProjectRow(sql) : null
+      }
       return null
     },
     async all() {
       if (sql.includes('FROM projects WHERE is_published = 1')) {
-        return { results: [sql.includes('title AS name') ? projectRowForSsr() : projectRow], success: true }
+        return {
+          results: [sql.includes('title AS name') ? projectRowForSsr() : selectedProjectRow(sql)],
+          success: true
+        }
       }
       if (sql.includes('FROM site_methods') && sql.includes('is_enabled = 1')) {
         return { results: [params[0] === 'donation' ? donationMethodRow : siteMethodRow], success: true }
