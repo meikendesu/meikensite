@@ -935,7 +935,8 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
     const row = await env.DB.prepare(
       `SELECT id, slug, tag, title, description, markdown, is_published,
         published_at, created_at, updated_at, executable_object_key,
-        executable_file_name, executable_size, executable_uploaded_at
+        executable_file_name, executable_size, executable_uploaded_at,
+        cover_object_key, cover_file_name, cover_size, cover_uploaded_at
          FROM projects WHERE slug = ? AND is_published = 1`
     ).bind(slug).first()
     if (!row) return json({ error: '项目不存在。' }, 404)
