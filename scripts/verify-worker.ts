@@ -16,7 +16,12 @@ const projectRow = {
   is_published: 1,
   published_at: '2026-08-01',
   created_at: '2026-08-01',
-  updated_at: '2026-08-16'
+  updated_at: '2026-08-16',
+  executable_object_key: 'projects/1/wawawa.apk' as string | null,
+  executable_file_name: 'wawawa.apk' as string | null,
+  executable_content_type: 'application/vnd.android.package-archive' as string | null,
+  executable_size: 17 as number | null,
+  executable_uploaded_at: '2026-08-24 12:00:00' as string | null
 }
 const aboutRow = {
   locale: 'zh-CN',
@@ -57,6 +62,27 @@ const donationMethodRow = {
 }
 
 const translationCache = new Map<string, { sourceHash: string; translatedJson: string }>()
+const executableBody = new TextEncoder().encode('mock-apk-download')
+
+function projectRowForSsr() {
+  return {
+    id: projectRow.id,
+    slug: projectRow.slug,
+    tag: projectRow.tag,
+    name: projectRow.title,
+    desc: projectRow.description,
+    markdown: projectRow.markdown,
+    published: projectRow.is_published,
+    publishedAt: projectRow.published_at,
+    createdAt: projectRow.created_at,
+    updatedAt: projectRow.updated_at,
+    hasExecutable: projectRow.executable_object_key ? 1 : 0,
+    executableFileName: projectRow.executable_file_name,
+    executableContentType: projectRow.executable_content_type,
+    executableSize: projectRow.executable_size,
+    executableUploadedAt: projectRow.executable_uploaded_at
+  }
+}
 
 function statement(sql: string) {
   let params: unknown[] = []
@@ -70,8 +96,28 @@ function statement(sql: string) {
         const cached = translationCache.get(`${params[0]}|${params[1]}|${params[2]}`)
         return cached?.sourceHash === params[3] ? { translatedJson: cached.translatedJson } : null
       }
+      if (sql.includes('FROM admin_sessions s')) {
+        return { token_hash: String(params[0]), expires_at: '2099-01-01 00:00:00', must_change_password: 0 }
+      }
       if (sql.includes('FROM about_content')) return params[0] === 'zh-CN' ? aboutRow : null
       if (sql.includes('COUNT(*) AS count FROM projects')) return { count: 1 }
+      if (sql.includes('title AS name') && sql.includes('FROM projects WHERE slug = ?')) {
+        return params[0] === projectRow.slug ? projectRowForSsr() : null
+      }
+      if (sql.includes('FROM projects WHERE id = ?') && sql.includes('executable_object_key')) {
+        return Number(params[0]) === projectRow.id
+          ? {
+              id: projectRow.id,
+              objectKey: projectRow.executable_object_key,
+              fileName: projectRow.executable_file_name
+            }
+          : null
+      }
+      if (sql.includes('executable_object_key AS objectKey')) {
+        return params[0] === projectRow.slug && projectRow.executable_object_key
+          ? { objectKey: projectRow.executable_object_key, fileName: projectRow.executable_file_name }
+          : null
+      }
       if (sql.includes('FROM projects WHERE slug = ?')) return params[0] === projectRow.slug ? projectRow : null
       return null
     },
@@ -83,6 +129,20 @@ function statement(sql: string) {
       return { results: [], success: true }
     },
     async run() {
+      if (sql.includes('UPDATE projects SET executable_object_key = ?')) {
+        projectRow.executable_object_key = String(params[0])
+        projectRow.executable_file_name = String(params[1])
+        projectRow.executable_content_type = String(params[2])
+        projectRow.executable_size = Number(params[3])
+        projectRow.executable_uploaded_at = '2026-08-24 13:00:00'
+      }
+      if (sql.includes('UPDATE projects SET executable_object_key = NULL')) {
+        projectRow.executable_object_key = null
+        projectRow.executable_file_name = null
+        projectRow.executable_content_type = null
+        projectRow.executable_size = null
+        projectRow.executable_uploaded_at = null
+      }
       if (sql.includes('INSERT INTO translation_cache')) {
         translationCache.set(`${params[0]}|${params[1]}|${params[2]}`, {
           sourceHash: String(params[3]),
@@ -101,6 +161,53 @@ const mockDb = new Proxy({} as D1Database, {
     return undefined
   }
 })
+
+interface MockR2Value {
+  bytes: Uint8Array
+  contentType: string
+}
+
+const mockR2Values = new Map<string, MockR2Value>([[
+  projectRow.executable_object_key!,
+  { bytes: executableBody, contentType: projectRow.executable_content_type! }
+]])
+
+function mockR2Object(key: string, value: MockR2Value) {
+  return {
+    key,
+    size: value.bytes.byteLength,
+    httpEtag: '"mock-etag"',
+    uploaded: new Date('2026-08-24T13:00:00.000Z'),
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(value.bytes)
+        controller.close()
+      }
+    }),
+    writeHttpMetadata(headers: Headers) {
+      headers.set('content-type', value.contentType)
+    }
+  }
+}
+
+const mockProjectFiles = {
+  async get(key: string) {
+    const value = mockR2Values.get(key)
+    return value ? mockR2Object(key, value) : null
+  },
+  async put(key: string, body: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions) {
+    const bytes = new Uint8Array(await new Response(body as BodyInit).arrayBuffer())
+    const contentType = options?.httpMetadata instanceof Headers
+      ? options.httpMetadata.get('content-type') || 'application/octet-stream'
+      : options?.httpMetadata?.contentType || 'application/octet-stream'
+    const value = { bytes, contentType }
+    mockR2Values.set(key, value)
+    return mockR2Object(key, value)
+  },
+  async delete(key: string | string[]) {
+    for (const item of Array.isArray(key) ? key : [key]) mockR2Values.delete(item)
+  }
+} as unknown as R2Bucket
 
 let aiCalls = 0
 const aiModels: string[] = []
@@ -126,7 +233,7 @@ const mockAi = {
   }
 } as unknown as Ai
 
-const env: Env = {
+const env = {
   TURNSTILE_HOSTNAMES: '983765.xyz',
   // 使用最小的本地 binding 替身调用 Worker，无需连接 Cloudflare 或真实 D1。
   ASSETS: {
@@ -144,8 +251,10 @@ const env: Env = {
   // 使用确定性的本地 AI 替身，验证按需翻译和缓存，不把内容发送到外部服务。
   AI: mockAi,
   // D1 替身包含一条项目、关于页、联系方式和内存翻译缓存。
-  DB: mockDb
-}
+  DB: mockDb,
+  // R2 替身包含当前项目的可执行文件。
+  PROJECT_FILES: mockProjectFiles
+} as Env & { PROJECT_FILES: R2Bucket }
 
 const originalFetch = globalThis.fetch
 const turnstileRequests: URLSearchParams[] = []
@@ -224,12 +333,73 @@ const home = await request('/')
 assert.equal(home.status, 200, '已知路由状态码')
 assert.match(await home.text(), /<div id="app">.+<\/div>/s, '已知路由 SSR 内容')
 
-for (const pathname of ['/projects', '/projects/wawawa']) {
-  const response = await request(pathname)
-  const body = await response.text()
-  assert.equal(response.status, 200, `${pathname} 状态码`)
-  assert.doesNotMatch(body, /work-btn-unavailable|暂未提供下载|下载应用/, `${pathname} 不应包含下载入口`)
+const projectsPage = await request('/projects')
+assert.equal(projectsPage.status, 200, '/projects 状态码')
+assert.doesNotMatch(await projectsPage.text(), /\/api\/projects\/wawawa\/download/, '项目列表不直接显示下载入口')
+
+const projectDetailPage = await request('/projects/wawawa')
+const projectDetailBody = await projectDetailPage.text()
+assert.equal(projectDetailPage.status, 200, '/projects/wawawa 状态码')
+assert.match(projectDetailBody, /\/api\/projects\/wawawa\/download/, '具有可执行文件的项目详情应显示下载入口')
+assert.match(projectDetailBody, /下载项目文件/, '项目详情下载按钮应有清晰文案')
+
+const projectDetailApi = await request('/api/projects/wawawa?locale=zh-CN')
+assert.equal(projectDetailApi.status, 200, '项目详情 API 状态码')
+const projectDetailData = await projectDetailApi.json() as {
+  project: { hasExecutable: boolean; executableFileName: string; executableSize: number; executableObjectKey?: string }
 }
+assert.equal(projectDetailData.project.hasExecutable, true, '项目 API 应标记已上传可执行文件')
+assert.equal(projectDetailData.project.executableFileName, 'wawawa.apk', '项目 API 应返回下载文件名')
+assert.equal(projectDetailData.project.executableSize, executableBody.byteLength, '项目 API 应返回文件大小')
+assert.equal(projectDetailData.project.executableObjectKey, undefined, '项目 API 不应暴露 R2 对象键')
+
+const projectDownload = await request('/api/projects/wawawa/download')
+assert.equal(projectDownload.status, 200, '项目文件下载状态码')
+assert.equal(await projectDownload.text(), 'mock-apk-download', '下载响应应流式返回 R2 对象内容')
+assert.match(projectDownload.headers.get('content-disposition') || '', /attachment/, '下载响应应强制保存为附件')
+assert.match(projectDownload.headers.get('content-disposition') || '', /wawawa\.apk/, '下载响应应保留管理员上传的文件名')
+assert.equal(projectDownload.headers.get('x-content-type-options'), 'nosniff', '下载响应应禁止 MIME 嗅探')
+
+async function adminRequest(pathname: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers)
+  headers.set('origin', origin)
+  headers.set('cookie', 'meiken_admin_session=mock-admin-token')
+  return worker.fetch(
+    new Request(`${origin}${pathname}`, { ...init, headers }),
+    turnstileEnv,
+    {} as ExecutionContext
+  )
+}
+
+const replacementBody = new TextEncoder().encode('replacement-apk')
+const uploadResponse = await adminRequest('/api/admin/projects/1/executable', {
+  method: 'PUT',
+  headers: {
+    'content-type': 'application/vnd.android.package-archive',
+    'x-project-file-name': encodeURIComponent('新版 Wawawa.apk')
+  },
+  body: replacementBody
+})
+assert.equal(uploadResponse.status, 200, '管理员应能上传并替换项目可执行文件')
+const uploadData = await uploadResponse.json() as { fileName: string; size: number }
+assert.equal(uploadData.fileName, '新版 Wawawa.apk', '上传响应应保留原始文件名')
+assert.equal(uploadData.size, replacementBody.byteLength, '上传响应应返回 R2 实际对象大小')
+assert.equal(mockR2Values.has('projects/1/wawawa.apk'), false, '替换成功后应删除旧 R2 对象')
+assert.ok(projectRow.executable_object_key && mockR2Values.has(projectRow.executable_object_key), 'D1 应关联新 R2 对象键')
+
+const replacementDownload = await request('/api/projects/wawawa/download')
+assert.equal(await replacementDownload.text(), 'replacement-apk', '公开下载应立即返回替换后的 R2 对象')
+assert.match(replacementDownload.headers.get('content-disposition') || '', /%E6%96%B0%E7%89%88%20Wawawa\.apk/, '中文文件名应使用 RFC 5987 编码')
+
+const removeResponse = await adminRequest('/api/admin/projects/1/executable', { method: 'DELETE' })
+assert.equal(removeResponse.status, 200, '管理员应能移除项目可执行文件')
+assert.equal(projectRow.executable_object_key, null, '移除后 D1 不应继续标记项目具有可执行文件')
+assert.equal(mockR2Values.size, 0, '移除后 R2 不应残留当前项目对象')
+
+const removedDownload = await request('/api/projects/wawawa/download')
+assert.equal(removedDownload.status, 404, '没有可执行文件的项目下载接口应返回 404')
+const projectWithoutDownload = await request('/projects/wawawa')
+assert.doesNotMatch(await projectWithoutDownload.text(), /\/api\/projects\/wawawa\/download/, '移除文件后项目详情不应显示下载按钮')
 
 const aiTranslationCases = [
   ['/api/translations/ui?locale=en', 'messages', '[en] 首页'],
@@ -326,7 +496,8 @@ assert.ok(prewarmRequests.includes('/api/site-methods?category=donation&locale=e
 console.log('✓ 已知路由返回 SSR 200')
 console.log('✓ Turnstile 校验要求正确 action、hostname、token 与 Worker secret')
 console.log('✓ 公开页面在 Turnstile 验证前不返回 SSR 内容，验证后使用签名 HttpOnly Cookie 放行')
-console.log('✓ 项目列表与项目详情均不再包含下载入口')
+console.log('✓ 项目详情按 D1 元数据显示下载按钮，并通过私有 R2 binding 流式下载文件')
+console.log('✓ 管理员可上传、替换和移除项目文件，D1 与 R2 状态同步更新')
 console.log('✓ 界面、关于、项目列表、项目文章和捐助说明按语言翻译并命中缓存')
 console.log('✓ 繁体中文使用 OpenCC 台湾词汇转换且不调用 AI')
 console.log('✓ 英语与日语使用 Qwen3 30B，兼容结构化 choices 输出')

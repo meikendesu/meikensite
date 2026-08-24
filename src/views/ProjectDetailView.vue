@@ -36,6 +36,13 @@ watch(locale, () => loadProject(true))
 // 管理后台内容按不可信输入处理，禁用原始 HTML，避免存储型 XSS。
 const md = new MarkdownIt({ html: false, linkify: true })
 const rendered = computed(() => (project.value ? md.render(project.value.markdown) : ''))
+
+function formatFileSize(size: number | null) {
+  if (!size || size < 1) return ''
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
 </script>
 
 <template>
@@ -51,6 +58,17 @@ const rendered = computed(() => (project.value ? md.render(project.value.markdow
       <section class="page-hero compact">
         <h1>{{ project.name }}</h1>
         <p class="hero-copy">{{ t('projects.publishedAt') }} {{ project.publishedAt }} · {{ t('projects.updatedAt') }} {{ project.updatedAt }}</p>
+      </section>
+      <section v-if="project.hasExecutable" class="detail-download" :aria-label="t('detail.executableFile')">
+        <div>
+          <strong>{{ project.executableFileName }}</strong>
+          <small v-if="project.executableSize">{{ formatFileSize(project.executableSize) }}</small>
+        </div>
+        <a
+          class="work-btn detail-download-button"
+          :href="`/api/projects/${encodeURIComponent(project.slug)}/download`"
+          :download="project.executableFileName || undefined"
+        ><i class="fa-solid fa-download"></i> {{ t('common.downloadProject') }}</a>
       </section>
       <article class="markdown-body" v-html="rendered"></article>
     </template>

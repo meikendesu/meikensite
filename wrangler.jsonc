@@ -26,6 +26,12 @@
 			"migrations_dir": "migrations"
 		}
 	],
+	"r2_buckets": [
+		{
+			"binding": "PROJECT_FILES",
+			"bucket_name": "meiken-storage"
+		}
+	],
 	"ai": {
 		"binding": "AI",
 		"remote": true

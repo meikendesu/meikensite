@@ -22,6 +22,22 @@ export async function adminApi<T = Record<string, unknown>>(url: string, options
   return data
 }
 
+export async function uploadProjectExecutable<T>(projectId: number, file: File): Promise<T> {
+  const response = await fetch(`/api/admin/projects/${projectId}/executable`, {
+    method: 'PUT',
+    headers: {
+      'content-type': file.type || 'application/octet-stream',
+      'x-project-file-name': encodeURIComponent(file.name)
+    },
+    body: file
+  })
+  const data = await response.json().catch(() => ({})) as T & { error?: string }
+  if (!response.ok) {
+    throw new AdminApiError(data.error || '项目文件上传失败。', response.status)
+  }
+  return data
+}
+
 export async function requireAdminSession(router: Router): Promise<AdminSession | null> {
   try {
     const session = await adminApi<AdminSession>('/api/admin/session')

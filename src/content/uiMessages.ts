@@ -22,6 +22,7 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
     backHome: '首页',
     backProjects: '项目',
     viewProject: '查看项目',
+    downloadProject: '下载项目文件',
     copy: '复制',
     open: '打开',
     close: '关闭'
@@ -81,7 +82,8 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
     notFound: '项目不存在',
     notFoundDesc: '没有找到这个项目，可能已被移除或地址有误。',
     loading: '正在加载项目…',
-    loadFailed: '项目详情加载失败。'
+    loadFailed: '项目详情加载失败。',
+    executableFile: '项目文件'
   },
   about: { loadFailed: '关于页面内容加载失败。' },
   docTitle: {

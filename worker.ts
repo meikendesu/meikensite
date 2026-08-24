@@ -1,4 +1,4 @@
-// Cloudflare Worker：SSR、D1 项目内容与单管理员认证 API。
+// Cloudflare Worker：SSR、D1 项目内容、R2 项目文件与单管理员认证 API。
 import { render } from './dist/server/entry-server.js'
 import QRCode from 'qrcode'
 import { ConverterFactory } from 'opencc-js/core'
@@ -17,6 +17,7 @@ const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 const ADMIN_GATE_MAX_AGE = 60 * 60 * 12
 const SITE_GATE_MAX_AGE = 60 * 60 * 24
 const MAX_JSON_BYTES = 512 * 1024
+const MAX_EXECUTABLE_BYTES = 100_000_000
 const TURNSTILE_SITE_KEY = '0x4AAAAAAESUPQBRhDhcPH_1'
 const TRANSLATION_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8' as const
 const SUPPORTED_LOCALES: Locale[] = ['zh-CN', 'zh-TW', 'en', 'ja']
@@ -249,15 +250,49 @@ function normalizeProject(row) {
     published: Boolean(row.is_published),
     publishedAt: row.published_at,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    hasExecutable: Boolean(row.executable_object_key),
+    executableFileName: row.executable_file_name || null,
+    executableSize: row.executable_size === null || row.executable_size === undefined
+      ? null
+      : Number(row.executable_size),
+    executableUploadedAt: row.executable_uploaded_at || null
   }
+}
+
+function attachmentDisposition(fileName: string) {
+  const normalized = fileName.replace(/[\\/\r\n"]/g, '_').trim().slice(0, 240) || 'project-download'
+  const asciiName = normalized.replace(/[^\x20-\x7e]/g, '_')
+  return `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(normalized)}`
+}
+
+function uploadedFileName(request: Request) {
+  const encoded = request.headers.get('x-project-file-name') || ''
+  if (!encoded || encoded.length > 1024) return ''
+  try {
+    const fileName = decodeURIComponent(encoded)
+      .replace(/[\\/\u0000-\u001f\u007f]/g, '_')
+      .trim()
+      .slice(0, 240)
+    return fileName === '.' || fileName === '..' ? '' : fileName
+  } catch {
+    return ''
+  }
+}
+
+function uploadedContentType(request: Request) {
+  const contentType = (request.headers.get('content-type') || '').split(';', 1)[0].trim()
+  return contentType && contentType.length <= 120 && !/[\r\n]/.test(contentType)
+    ? contentType
+    : 'application/octet-stream'
 }
 
 async function listProjects(db, includeDrafts = false) {
   const where = includeDrafts ? '' : 'WHERE is_published = 1'
   const result = await db.prepare(
     `SELECT id, slug, tag, title, description, markdown, is_published,
-      published_at, created_at, updated_at
+      published_at, created_at, updated_at, executable_object_key,
+      executable_file_name, executable_size, executable_uploaded_at
        FROM projects ${where} ORDER BY published_at DESC, updated_at DESC, id DESC`
   ).all()
   return result.results.map(normalizeProject)
@@ -667,7 +702,8 @@ async function prewarmProjectTranslations(db: D1Database, ai: Ai, slug?: string)
   if (!slug) return
   const row = await db.prepare(
     `SELECT id, slug, tag, title, description, markdown, is_published,
-      published_at, created_at, updated_at
+      published_at, created_at, updated_at, executable_object_key,
+      executable_file_name, executable_size, executable_uploaded_at
        FROM projects WHERE slug = ? AND is_published = 1`
   ).bind(slug).first()
   if (!row) return
@@ -829,13 +865,37 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
     }
   }
 
+  const projectDownloadMatch = request.method === 'GET' && pathname.match(/^\/api\/projects\/([^/]+)\/download$/)
+  if (projectDownloadMatch) {
+    const slug = decodeURIComponent(projectDownloadMatch[1])
+    const row = await env.DB.prepare(
+      `SELECT executable_object_key AS objectKey, executable_file_name AS fileName
+       FROM projects
+       WHERE slug = ? AND is_published = 1 AND executable_object_key IS NOT NULL`
+    ).bind(slug).first<{ objectKey: string; fileName: string }>()
+    if (!row?.objectKey) return json({ error: '项目文件不存在。' }, 404)
+
+    const object = await env.PROJECT_FILES.get(row.objectKey)
+    if (!object) return json({ error: '项目文件不存在。' }, 404)
+
+    const headers = new Headers()
+    object.writeHttpMetadata(headers)
+    headers.set('content-disposition', attachmentDisposition(row.fileName))
+    headers.set('content-length', String(object.size))
+    headers.set('etag', object.httpEtag)
+    headers.set('cache-control', 'private, no-store')
+    headers.set('x-content-type-options', 'nosniff')
+    return new Response(object.body, { headers })
+  }
+
   if (request.method === 'GET' && pathname.startsWith('/api/projects/')) {
     const slug = decodeURIComponent(pathname.slice('/api/projects/'.length))
     const localeValue = requestUrl.searchParams.get('locale') || 'zh-CN'
     if (!isLocale(localeValue)) return json({ error: '语言无效。' }, 400)
     const row = await env.DB.prepare(
       `SELECT id, slug, tag, title, description, markdown, is_published,
-        published_at, created_at, updated_at
+        published_at, created_at, updated_at, executable_object_key,
+        executable_file_name, executable_size, executable_uploaded_at
          FROM projects WHERE slug = ? AND is_published = 1`
     ).bind(slug).first()
     if (!row) return json({ error: '项目不存在。' }, 404)
@@ -942,6 +1002,84 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
   }
 
   if (session.must_change_password) return json({ error: '首次使用必须先修改密码。' }, 403)
+
+  const executableMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/executable$/)
+  if (executableMatch && (request.method === 'PUT' || request.method === 'DELETE')) {
+    const id = Number(executableMatch[1])
+    if (!Number.isInteger(id) || id < 1) return json({ error: '项目 ID 无效。' }, 400)
+    const existing = await env.DB.prepare(
+      `SELECT id, executable_object_key AS objectKey, executable_file_name AS fileName
+       FROM projects WHERE id = ?`
+    ).bind(id).first<{ id: number; objectKey: string | null; fileName: string | null }>()
+    if (!existing) return json({ error: '项目不存在。' }, 404)
+
+    if (request.method === 'DELETE') {
+      await env.DB.prepare(
+        `UPDATE projects SET executable_object_key = NULL, executable_file_name = NULL,
+          executable_content_type = NULL, executable_size = NULL,
+          executable_uploaded_at = NULL WHERE id = ?`
+      ).bind(id).run()
+      if (existing.objectKey) await env.PROJECT_FILES.delete(existing.objectKey)
+      return json({ ok: true, hasExecutable: false })
+    }
+
+    const fileName = uploadedFileName(request)
+    if (!fileName) return json({ error: '项目文件名无效。' }, 400)
+    if (!request.body) return json({ error: '请选择要上传的项目文件。' }, 400)
+    const contentLength = Number(request.headers.get('content-length') || 0)
+    if (Number.isFinite(contentLength) && contentLength > MAX_EXECUTABLE_BYTES) {
+      return json({ error: '项目文件不能超过 100 MB。' }, 413)
+    }
+
+    const contentType = uploadedContentType(request)
+    const objectKey = `projects/${id}/${crypto.randomUUID()}`
+    const stored = await env.PROJECT_FILES.put(objectKey, request.body, {
+      httpMetadata: {
+        contentType,
+        contentDisposition: attachmentDisposition(fileName),
+        cacheControl: 'private, no-store'
+      },
+      customMetadata: { projectId: String(id) }
+    })
+    if (stored.size < 1) {
+      await env.PROJECT_FILES.delete(objectKey)
+      return json({ error: '项目文件不能为空。' }, 400)
+    }
+    if (stored.size > MAX_EXECUTABLE_BYTES) {
+      await env.PROJECT_FILES.delete(objectKey)
+      return json({ error: '项目文件不能超过 100 MB。' }, 413)
+    }
+
+    try {
+      await env.DB.prepare(
+        `UPDATE projects SET executable_object_key = ?, executable_file_name = ?,
+          executable_content_type = ?, executable_size = ?,
+          executable_uploaded_at = CURRENT_TIMESTAMP WHERE id = ?`
+      ).bind(objectKey, fileName, contentType, stored.size, id).run()
+    } catch (error) {
+      await env.PROJECT_FILES.delete(objectKey)
+      throw error
+    }
+
+    if (existing.objectKey && existing.objectKey !== objectKey) {
+      try {
+        await env.PROJECT_FILES.delete(existing.objectKey)
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: 'project_file_cleanup_failed',
+          projectId: id,
+          message: error instanceof Error ? error.message : 'unknown'
+        }))
+      }
+    }
+    return json({
+      ok: true,
+      hasExecutable: true,
+      fileName,
+      size: stored.size,
+      uploadedAt: stored.uploaded.toISOString()
+    })
+  }
 
   if (request.method === 'GET' && pathname === '/api/admin/projects') {
     return json({ projects: await listProjects(env.DB, true) })
@@ -1060,6 +1198,7 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
     if (updatedAt < publishedAt) return json({ error: '更新日期不能早于发布日期。' }, 400)
 
     let previousSlug = ''
+    let projectId = Number(body.id || 0)
     if (body.id) {
       const previous = await env.DB.prepare('SELECT slug FROM projects WHERE id = ?').bind(Number(body.id)).first<{ slug: string }>()
       previousSlug = previous?.slug || ''
@@ -1068,11 +1207,12 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
           is_published = ?, published_at = ?, updated_at = ? WHERE id = ?`
       ).bind(slug, tag, title, description, markdown, published, publishedAt, updatedAt, Number(body.id)).run()
     } else {
-      await env.DB.prepare(
+      const result = await env.DB.prepare(
         `INSERT INTO projects
           (slug, tag, title, description, markdown, is_published, published_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(slug, tag, title, description, markdown, published, publishedAt, updatedAt).run()
+      projectId = Number(result.meta.last_row_id)
     }
     if (previousSlug && previousSlug !== slug) {
       await env.DB.prepare(
@@ -1080,14 +1220,27 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
       ).bind(previousSlug).run()
     }
     scheduleTranslationPrewarm(ctx, `projects:${slug}`, prewarmProjectTranslations(env.DB, env.AI, slug))
-    return json({ ok: true })
+    return json({ ok: true, id: projectId })
   }
 
   if (request.method === 'DELETE' && pathname.startsWith('/api/admin/projects/')) {
     const id = Number(pathname.slice('/api/admin/projects/'.length))
     if (!Number.isInteger(id) || id < 1) return json({ error: '项目 ID 无效。' }, 400)
-    const existing = await env.DB.prepare('SELECT slug FROM projects WHERE id = ?').bind(id).first<{ slug: string }>()
+    const existing = await env.DB.prepare(
+      'SELECT slug, executable_object_key AS objectKey FROM projects WHERE id = ?'
+    ).bind(id).first<{ slug: string; objectKey: string | null }>()
     await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(id).run()
+    if (existing?.objectKey) {
+      try {
+        await env.PROJECT_FILES.delete(existing.objectKey)
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: 'project_file_cleanup_failed',
+          projectId: id,
+          message: error instanceof Error ? error.message : 'unknown'
+        }))
+      }
+    }
     if (existing?.slug) {
       await env.DB.prepare(
         `DELETE FROM translation_cache WHERE scope = 'project-detail' AND source_key = ?`

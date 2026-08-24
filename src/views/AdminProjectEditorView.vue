@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import { useRoute, useRouter } from 'vue-router'
-import { adminApi, requireAdminSession } from '../data/adminApi'
+import { adminApi, requireAdminSession, uploadProjectExecutable } from '../data/adminApi'
 import CustomSelect from '../components/CustomSelect.vue'
 import type { Project } from '../types'
 import { beginPageLoading } from '../data/pageLoading'
@@ -12,6 +12,10 @@ const router = useRouter()
 const status = ref('loading')
 const error = ref('')
 const markdownInput = ref(null)
+const executableInput = ref<HTMLInputElement | null>(null)
+const selectedExecutable = ref<File | null>(null)
+const removeExecutable = ref(false)
+const saving = ref(false)
 const headingLevel = ref('')
 const today = new Date().toISOString().slice(0, 10)
 const editor = reactive({
@@ -24,6 +28,12 @@ const editor = reactive({
   published: false,
   publishedAt: today,
   updatedAt: today
+})
+const existingExecutable = reactive({
+  hasFile: false,
+  fileName: '',
+  size: null as number | null,
+  uploadedAt: ''
 })
 const md = new MarkdownIt({ html: false, linkify: true })
 const preview = computed(() => md.render(editor.markdown || ''))
@@ -55,6 +65,12 @@ async function loadEditor() {
         publishedAt: project.publishedAt,
         updatedAt: project.updatedAt
       })
+      Object.assign(existingExecutable, {
+        hasFile: project.hasExecutable,
+        fileName: project.executableFileName || '',
+        size: project.executableSize,
+        uploadedAt: project.executableUploadedAt || ''
+      })
     }
     status.value = 'ready'
   } catch (requestError) {
@@ -71,12 +87,63 @@ async function saveProject() {
     error.value = '更新日期不能早于发布日期。'
     return
   }
+  saving.value = true
+  let metadataSaved = false
   try {
-    await adminApi('/api/admin/projects', { method: 'POST', body: JSON.stringify(editor) })
+    const result = await adminApi<{ id: number }>('/api/admin/projects', {
+      method: 'POST',
+      body: JSON.stringify(editor)
+    })
+    editor.id = result.id
+    metadataSaved = true
+    if (selectedExecutable.value) {
+      await uploadProjectExecutable(result.id, selectedExecutable.value)
+    } else if (removeExecutable.value) {
+      await adminApi(`/api/admin/projects/${result.id}/executable`, { method: 'DELETE' })
+    }
     await router.push({ path: '/admin', query: { saved: 'project' } })
   } catch (requestError) {
-    error.value = requestError.message
+    const message = requestError instanceof Error ? requestError.message : '项目保存失败。'
+    error.value = metadataSaved ? `项目内容已保存，但文件处理失败：${message}` : message
+  } finally {
+    saving.value = false
   }
+}
+
+function selectExecutable(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (file.size < 1) {
+    error.value = '项目文件不能为空。'
+    input.value = ''
+    return
+  }
+  if (file.size > 100_000_000) {
+    error.value = '请选择不超过 100 MB 的项目文件。'
+    input.value = ''
+    return
+  }
+  selectedExecutable.value = file
+  removeExecutable.value = false
+  error.value = ''
+}
+
+function clearExecutableSelection() {
+  selectedExecutable.value = null
+  if (executableInput.value) executableInput.value.value = ''
+}
+
+function markExecutableForRemoval() {
+  clearExecutableSelection()
+  removeExecutable.value = true
+}
+
+function formatFileSize(size: number | null) {
+  if (!size || size < 1) return '0 B'
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function importMarkdown(event) {
@@ -168,6 +235,26 @@ onMounted(loadEditor)
       </div>
       <label>简介<textarea v-model="editor.description" maxlength="500" rows="3"></textarea></label>
 
+      <section class="admin-executable-field" aria-labelledby="project-executable-title">
+        <div class="admin-executable-heading">
+          <div>
+            <strong id="project-executable-title">项目可执行文件</strong>
+            <small>可上传安装包或其他可下载文件，最大 100 MB；保存项目时上传到 Cloudflare R2。</small>
+          </div>
+          <label class="file-button">{{ existingExecutable.hasFile ? '选择替换文件' : '选择文件' }}<input ref="executableInput" type="file" @change="selectExecutable" /></label>
+        </div>
+        <div v-if="selectedExecutable" class="admin-executable-status">
+          <span><i class="fa-solid fa-file-arrow-up"></i><strong>{{ selectedExecutable.name }}</strong><small>{{ formatFileSize(selectedExecutable.size) }} · 保存后上传</small></span>
+          <button type="button" @click="clearExecutableSelection">取消选择</button>
+        </div>
+        <div v-else-if="existingExecutable.hasFile && !removeExecutable" class="admin-executable-status">
+          <span><i class="fa-solid fa-file-circle-check"></i><strong>{{ existingExecutable.fileName }}</strong><small>{{ formatFileSize(existingExecutable.size) }} · 已上传</small></span>
+          <button class="danger" type="button" @click="markExecutableForRemoval">移除文件</button>
+        </div>
+        <p v-else-if="removeExecutable" class="form-message">保存后将移除当前项目文件。 <button type="button" @click="removeExecutable = false">撤销</button></p>
+        <p v-else class="admin-help">未上传文件时，公开项目详情不会显示下载按钮。</p>
+      </section>
+
       <div class="markdown-editor-header">
         <div><strong>Markdown 编辑器</strong><small>输入内容后右侧会立即显示预览</small></div>
         <label class="file-button">导入 .md<input type="file" accept=".md,text/markdown" @change="importMarkdown" /></label>
@@ -199,7 +286,7 @@ onMounted(loadEditor)
 
       <div class="admin-form-actions">
         <router-link class="work-btn" to="/admin">取消</router-link>
-        <button class="admin-primary" type="submit">{{ editor.published ? '保存并发布' : '保存草稿' }}</button>
+        <button class="admin-primary" type="submit" :disabled="saving">{{ saving ? '正在保存…' : editor.published ? '保存并发布' : '保存草稿' }}</button>
       </div>
       <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
     </form>

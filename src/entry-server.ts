@@ -14,6 +14,10 @@ interface ProjectRow {
   publishedAt: string
   createdAt: string
   updatedAt: string
+  hasExecutable: number
+  executableFileName: string | null
+  executableSize: number | null
+  executableUploadedAt: string | null
 }
 
 interface AboutContentRow {
@@ -43,7 +47,9 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
       env.DB.prepare(
       `SELECT id, slug, tag, title AS name, description AS desc, '' AS markdown,
         is_published AS published, published_at AS publishedAt,
-        created_at AS createdAt, updated_at AS updatedAt
+        created_at AS createdAt, updated_at AS updatedAt,
+        0 AS hasExecutable, NULL AS executableFileName,
+        NULL AS executableSize, NULL AS executableUploadedAt
        FROM projects WHERE is_published = 1
        ORDER BY published_at DESC, updated_at DESC, id DESC LIMIT 10`
       ).all<ProjectRow>(),
@@ -51,7 +57,11 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
     ])
     const total = Number(countRow?.count || 0)
     return {
-      projects: result.results.map((project) => ({ ...project, published: Boolean(project.published) })),
+      projects: result.results.map((project) => ({
+        ...project,
+        published: Boolean(project.published),
+        hasExecutable: Boolean(project.hasExecutable)
+      })),
       pagination: { page: 1, pageSize: 10, total, totalPages: Math.max(1, Math.ceil(total / 10)) }
     }
   }
@@ -60,10 +70,20 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
     const row = await env.DB.prepare(
       `SELECT id, slug, tag, title AS name, description AS desc, markdown,
         is_published AS published, published_at AS publishedAt,
-        created_at AS createdAt, updated_at AS updatedAt
+        created_at AS createdAt, updated_at AS updatedAt,
+        CASE WHEN executable_object_key IS NOT NULL THEN 1 ELSE 0 END AS hasExecutable,
+        executable_file_name AS executableFileName, executable_size AS executableSize,
+        executable_uploaded_at AS executableUploadedAt
        FROM projects WHERE slug = ? AND is_published = 1`
     ).bind(slug).first<ProjectRow>()
-    return { ...empty, projects: row ? [{ ...row, published: Boolean(row.published) }] : [] }
+    return {
+      ...empty,
+      projects: row ? [{
+        ...row,
+        published: Boolean(row.published),
+        hasExecutable: Boolean(row.hasExecutable)
+      }] : []
+    }
   }
   return empty
 }

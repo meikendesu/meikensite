@@ -13,6 +13,10 @@ export interface Project {
   publishedAt: string
   createdAt?: string
   updatedAt: string
+  hasExecutable: boolean
+  executableFileName: string | null
+  executableSize: number | null
+  executableUploadedAt: string | null
 }
 
 export interface ProjectPagination {

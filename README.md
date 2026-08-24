@@ -1,6 +1,6 @@
 # MEIKEN 1.0.0 · Vue 3 + Vite SSR
 
-Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和管理员认证数据存储在 Cloudflare D1。
+Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和管理员认证数据存储在 Cloudflare D1，项目可执行文件存储在私有 Cloudflare R2 存储桶。
 
 当前仓库为 2026-08-17 正式发布的 `1.0.0` 版本。生产静态资源使用内容哈希与长期不可变缓存，内容页面保持服务端渲染，后台内容和按需翻译继续由 D1 与 Workers AI 提供。
 
@@ -16,6 +16,7 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和�
 - Cloudflare Workers + Assets
 - Cloudflare Workers AI（访客选择语言后按需翻译公开内容）
 - Cloudflare D1（项目文章、管理员密码哈希、登录会话）
+- Cloudflare R2（管理员上传的项目可执行文件与安装包）
 - Markdown It（安全模式，不执行文章中的原始 HTML）
 - Font Awesome Free 7（本地依赖，不再依赖第三方 CDN）
 - Noto Sans 可变字体（英文单文件 + 中日韩统一 Noto Sans CJK 单文件，本地 WOFF2）
@@ -25,7 +26,7 @@ Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和�
 ```text
 meikensite/
 ├── worker.ts               # Worker SSR 与 API 入口
-├── wrangler.jsonc          # Assets、D1 和日志配置
+├── wrangler.jsonc          # Assets、D1、R2 和日志配置
 ├── migrations/             # D1 数据库迁移（项目、联系方式、捐助方式）
 ├── src/
 │   ├── entry-client.ts     # 浏览器 hydration 入口
@@ -97,11 +98,12 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 1. 完成 Cloudflare Turnstile 人机验证，再使用初始密码 `123456` 登录。
 2. 首次登录会被强制要求设置至少 8 个字符的新密码。
 3. 新建或编辑项目必须填写发布日期和更新日期；内置 Markdown 工具栏支持标题、粗体、斜体、链接、列表、引用和代码，并同步显示实时预览。
-4. 勾选“公开发布”后保存，文章会出现在 `/projects`。
-5. 联系方式和捐助方式在两个独立分组中管理；使用每张卡片左侧把手，只能在当前分组内拖动排序。
-6. 方式编辑页可搜索并选择 Font Awesome 的全部免费图标，自定义下拉框不会调用浏览器原生弹层，表单下方会实时预览公开页面效果。
-7. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
-8. 关于页面、项目文章、联系方式与捐助方式都只维护简体中文源内容。繁体中文由 Worker 使用 OpenCC 台湾词汇表即时转换；英语和日语由 Workers AI 的 Qwen3 30B 翻译并缓存到 D1。部署完成后会通过线上 Worker 预热缓存；管理端保存内容后也会在响应返回后后台刷新相关翻译。翻译结果经过结构校验，源内容或翻译版本修改后缓存会自动失效，访客遇到冷缓存时仍有同步翻译兜底。
+4. 项目编辑页可以选择一个不超过 100 MB 的可执行文件或安装包；保存时文件会直接流式上传到 R2。已有文件可以替换或显式移除，不重新选择时会保留原文件。
+5. 勾选“公开发布”后保存，文章会出现在 `/projects`；只有已发布且已上传文件的项目详情会显示下载按钮。
+6. 联系方式和捐助方式在两个独立分组中管理；使用每张卡片左侧把手，只能在当前分组内拖动排序。
+7. 方式编辑页可搜索并选择 Font Awesome 的全部免费图标，自定义下拉框不会调用浏览器原生弹层，表单下方会实时预览公开页面效果。
+8. 加密货币捐助方式填写公开收款地址并勾选“自动生成二维码”后，Worker 会根据数据库中的当前地址生成 SVG 二维码。
+9. 关于页面、项目文章、联系方式与捐助方式都只维护简体中文源内容。繁体中文由 Worker 使用 OpenCC 台湾词汇表即时转换；英语和日语由 Workers AI 的 Qwen3 30B 翻译并缓存到 D1。部署完成后会通过线上 Worker 预热缓存；管理端保存内容后也会在响应返回后后台刷新相关翻译。翻译结果经过结构校验，源内容或翻译版本修改后缓存会自动失效，访客遇到冷缓存时仍有同步翻译兜底。
 
 密码不会明文保存。Worker 使用 PBKDF2-SHA-256 和随机盐生成密码哈希；会话令牌只以 SHA-256 摘要写入 D1，并通过 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 发送。
 
@@ -109,14 +111,17 @@ URL 片段不会发送到 Worker；页面会以同源请求换取最长 12 小�
 
 公开页面首次访问时也会先显示独立的 Turnstile 验证页。Cloudflare Assets 对 `/` 和 `/index.html` 启用 `run_worker_first`，避免缓存的 SPA 壳绕过门禁；Worker 在 Siteverify 严格校验 `site_access` action 与 hostname 后签发最长 24 小时的加密签名 `HttpOnly` Cookie，验证前不会执行或返回 Vue SSR 页面内容。其他静态资源和公开内容 API 不经过页面门禁，以保证资源缓存、翻译预热与部署流程正常；后台继续使用私有入口和登录 Turnstile，不重复显示全站验证。
 
-## 添加并部署 Cloudflare D1
+## 添加并部署 Cloudflare D1 与 R2
 
 先登录 Cloudflare，并创建生产数据库：
 
 ```bash
 npx wrangler login
 npx wrangler d1 create meikensite-db
+npx wrangler r2 bucket create meiken-storage
 ```
+
+Cloudflare R2 存储桶名称不能包含下划线，因此需求中的逻辑名称 `meiken_storage` 在配置中使用合法的实际桶名 `meiken-storage`。Worker 通过 `PROJECT_FILES` binding 访问该私有桶，不需要公开 R2 域名。
 
 命令会输出 `database_id`。把它加入 `wrangler.jsonc` 的现有 `d1_databases[0]`：
 
@@ -137,7 +142,7 @@ npx wrangler secret put ADMIN_ENTRY_KEY
 npm run deploy
 ```
 
-`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面内容以及项目发布日期字段；`migrations/0006_on_demand_translation_cache.sql` 会清理旧的非简体中文关于页副本，并建立按需翻译缓存。`wrangler.jsonc` 已声明 `AI` binding，不需要额外提供模型 API Key。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
+`migrations/0001_admin_projects.sql` 会创建管理员、会话、项目表并迁移原有 Wawawa 项目文章；`migrations/0004_site_methods.sql` 会创建联系方式和捐助方式表；`migrations/0005_about_content_and_project_dates.sql` 会加入关于页面内容以及项目发布日期字段；`migrations/0006_on_demand_translation_cache.sql` 会清理旧的非简体中文关于页副本，并建立按需翻译缓存；`migrations/0007_project_executables.sql` 会为项目加入 R2 对象键和文件元数据字段。`wrangler.jsonc` 已声明 `AI` 与 `PROJECT_FILES` binding，不需要额外提供模型或 R2 API Key。生产站通过私有入口打开登录页后，首次仍使用 `123456`，登录后必须立刻修改。
 
 `npm run deploy` 会先构建并部署 Worker，再运行 `scripts/prewarm-translations.ts` 请求线上公开接口；AI 调用始终发生在已部署的 Worker 内。Cloudflare Workers Builds 保持 Build command 为 `npm run build`，并将 Deploy command 设置为 `npm run deploy:worker`，避免重复构建，同时让 GitHub 后续每次推送都自动完成部署和预热。自定义域名变化时，可通过 `MEIKEN_SITE_URL=https://你的域名 npm run translations:prewarm` 指定预热地址。
 
@@ -151,7 +156,7 @@ https://你的域名/admin#access=你的ADMIN_ENTRY_KEY
 
 所有页面在客户端路由与异步条目加载期间显示圆环占位，加载完成后立即隐藏，不再人为延迟首屏内容。
 
-项目列表与项目详情只提供阅读入口，不显示下载按钮。
+项目列表只提供阅读入口。项目详情根据 D1 文件元数据决定是否显示下载按钮；下载请求由 Worker 校验已发布项目后从私有 R2 桶流式返回，并强制使用附件下载。
 
 备份生产文章：
 

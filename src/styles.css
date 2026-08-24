@@ -507,6 +507,22 @@ select {
 .work-btn i {
   font-size: 12px;
 }
+.detail-download {
+  @apply mb-5 flex items-center justify-between gap-4 rounded-2xl border border-separator bg-control p-4;
+}
+.detail-download div,
+.detail-download small {
+  @apply block;
+}
+.detail-download strong {
+  @apply break-all text-sm;
+}
+.detail-download small {
+  @apply mt-1 text-xs text-muted;
+}
+.detail-download-button {
+  @apply shrink-0;
+}
 @media (prefers-color-scheme: dark) {
   .work-btn {
     background: var(--bg-control);
@@ -1316,6 +1332,42 @@ select {
 .file-button input {
   display: none;
 }
+.admin-executable-field {
+  @apply rounded-xl border border-separator bg-control p-4;
+}
+.admin-executable-heading,
+.admin-executable-status {
+  @apply flex items-center justify-between gap-3;
+}
+.admin-executable-heading strong,
+.admin-executable-heading small,
+.admin-executable-status strong,
+.admin-executable-status small {
+  @apply block;
+}
+.admin-executable-heading small,
+.admin-executable-status small {
+  @apply mt-1 text-xs text-muted;
+}
+.admin-executable-status {
+  @apply mt-3 rounded-[10px] border border-separator bg-panel p-3;
+}
+.admin-executable-status span {
+  @apply flex min-w-0 items-center gap-2;
+}
+.admin-executable-status span > i {
+  @apply text-accent;
+}
+.admin-executable-status span > strong {
+  @apply break-all;
+}
+.admin-executable-status button,
+.admin-executable-field .form-message button {
+  @apply cursor-pointer border-0 bg-transparent text-xs font-semibold text-accent;
+}
+.admin-executable-status button.danger {
+  @apply text-[var(--sys-red)];
+}
 .markdown-editor-header,
 .admin-form-actions {
   display: flex;
@@ -1614,6 +1666,9 @@ select {
     align-items: flex-start;
     flex-direction: column;
   }
+  .detail-download {
+    @apply items-start flex-col;
+  }
   .admin-fields-grid,
   .markdown-editor-grid {
     grid-template-columns: 1fr;
@@ -1626,6 +1681,10 @@ select {
   .markdown-editor-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .admin-executable-heading,
+  .admin-executable-status {
+    @apply items-start flex-col;
   }
   .admin-sortable-list article {
     display: grid;
