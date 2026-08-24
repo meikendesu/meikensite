@@ -461,6 +461,12 @@ select {
 .work-card:hover {
   @apply -translate-y-1 shadow-floating;
 }
+.project-card-cover {
+  width: calc(100% + 44px);
+  aspect-ratio: 16 / 7;
+  margin: -22px -22px 18px;
+  @apply block max-h-[190px] object-cover border-b border-separator bg-control;
+}
 .work-tag {
   @apply text-[11px] font-semibold tracking-[0.05em] opacity-[0.68];
 }
@@ -509,6 +515,10 @@ select {
 }
 .detail-download {
   @apply mb-5 flex items-center justify-between gap-4 rounded-2xl border border-separator bg-control p-4;
+}
+.project-detail-cover {
+  aspect-ratio: 16 / 7;
+  @apply mb-5 block w-full max-h-[460px] rounded-card border border-separator bg-control object-cover shadow-panel;
 }
 .detail-download div,
 .detail-download small {
@@ -1334,6 +1344,10 @@ select {
 }
 .admin-executable-field {
   @apply rounded-xl border border-separator bg-control p-4;
+}
+.admin-cover-preview {
+  aspect-ratio: 16 / 7;
+  @apply mt-3 block w-full max-h-[360px] rounded-[10px] border border-separator bg-panel object-cover;
 }
 .admin-executable-heading,
 .admin-executable-status {

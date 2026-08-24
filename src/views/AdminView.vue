@@ -280,7 +280,7 @@ onMounted(async () => {
         </div>
         <div v-if="projects.length" class="admin-project-list">
           <article v-for="project in projects" :key="project.id">
-            <div><strong>{{ project.name }}</strong><small>{{ project.slug }} · {{ project.published ? '已发布' : '草稿' }} · {{ project.hasExecutable ? `文件 ${project.executableFileName}` : '无可执行文件' }} · 发布 {{ project.publishedAt }} · 更新 {{ project.updatedAt }}</small></div>
+            <div><strong>{{ project.name }}</strong><small>{{ project.slug }} · {{ project.published ? '已发布' : '草稿' }} · {{ project.hasCover ? '有封面' : '无封面' }} · {{ project.hasExecutable ? `文件 ${project.executableFileName}` : '无可执行文件' }} · 发布 {{ project.publishedAt }} · 更新 {{ project.updatedAt }}</small></div>
             <div class="admin-list-actions">
               <router-link :to="`/admin/projects/${project.id}/edit`">编辑</router-link>
               <button class="danger" type="button" @click="deleteProject(project)">删除</button>

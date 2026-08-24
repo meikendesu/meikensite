@@ -59,6 +59,13 @@ function formatFileSize(size: number | null) {
         <h1>{{ project.name }}</h1>
         <p class="hero-copy">{{ t('projects.publishedAt') }} {{ project.publishedAt }} · {{ t('projects.updatedAt') }} {{ project.updatedAt }}</p>
       </section>
+      <img
+        v-if="project.coverUrl"
+        class="project-detail-cover"
+        :src="project.coverUrl"
+        :alt="`${project.name} · ${t('projects.coverImage')}`"
+        decoding="async"
+      />
       <section v-if="project.hasExecutable" class="detail-download" :aria-label="t('detail.executableFile')">
         <div>
           <strong>{{ project.executableFileName }}</strong>

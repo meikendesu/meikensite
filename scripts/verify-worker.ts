@@ -21,7 +21,12 @@ const projectRow = {
   executable_file_name: 'wawawa.apk' as string | null,
   executable_content_type: 'application/vnd.android.package-archive' as string | null,
   executable_size: 17 as number | null,
-  executable_uploaded_at: '2026-08-24 12:00:00' as string | null
+  executable_uploaded_at: '2026-08-24 12:00:00' as string | null,
+  cover_object_key: 'projects/1/cover/mock-cover.webp' as string | null,
+  cover_file_name: 'wawawa-cover.webp' as string | null,
+  cover_content_type: 'image/webp' as string | null,
+  cover_size: 16 as number | null,
+  cover_uploaded_at: '2026-08-24 12:30:00' as string | null
 }
 const aboutRow = {
   locale: 'zh-CN',
@@ -63,6 +68,7 @@ const donationMethodRow = {
 
 const translationCache = new Map<string, { sourceHash: string; translatedJson: string }>()
 const executableBody = new TextEncoder().encode('mock-apk-download')
+const coverBody = new TextEncoder().encode('mock-cover-image')
 
 function projectRowForSsr() {
   return {
@@ -80,7 +86,14 @@ function projectRowForSsr() {
     executableFileName: projectRow.executable_file_name,
     executableContentType: projectRow.executable_content_type,
     executableSize: projectRow.executable_size,
-    executableUploadedAt: projectRow.executable_uploaded_at
+    executableUploadedAt: projectRow.executable_uploaded_at,
+    hasCover: projectRow.cover_object_key ? 1 : 0,
+    coverUrl: projectRow.cover_object_key
+      ? `/api/projects/${projectRow.slug}/cover?v=${encodeURIComponent(projectRow.cover_uploaded_at || '')}`
+      : null,
+    coverFileName: projectRow.cover_file_name,
+    coverSize: projectRow.cover_size,
+    coverUploadedAt: projectRow.cover_uploaded_at
   }
 }
 
@@ -113,6 +126,21 @@ function statement(sql: string) {
             }
           : null
       }
+      if (sql.includes('FROM projects WHERE id = ?') && sql.includes('cover_object_key')) {
+        return Number(params[0]) === projectRow.id
+          ? {
+              id: projectRow.id,
+              slug: projectRow.slug,
+              objectKey: projectRow.cover_object_key,
+              fileName: projectRow.cover_file_name
+            }
+          : null
+      }
+      if (sql.includes('cover_object_key AS objectKey')) {
+        return params[0] === projectRow.slug && projectRow.cover_object_key
+          ? { objectKey: projectRow.cover_object_key, contentType: projectRow.cover_content_type }
+          : null
+      }
       if (sql.includes('executable_object_key AS objectKey')) {
         return params[0] === projectRow.slug && projectRow.executable_object_key
           ? { objectKey: projectRow.executable_object_key, fileName: projectRow.executable_file_name }
@@ -122,7 +150,9 @@ function statement(sql: string) {
       return null
     },
     async all() {
-      if (sql.includes('FROM projects WHERE is_published = 1')) return { results: [projectRow], success: true }
+      if (sql.includes('FROM projects WHERE is_published = 1')) {
+        return { results: [sql.includes('title AS name') ? projectRowForSsr() : projectRow], success: true }
+      }
       if (sql.includes('FROM site_methods') && sql.includes('is_enabled = 1')) {
         return { results: [params[0] === 'donation' ? donationMethodRow : siteMethodRow], success: true }
       }
@@ -142,6 +172,20 @@ function statement(sql: string) {
         projectRow.executable_content_type = null
         projectRow.executable_size = null
         projectRow.executable_uploaded_at = null
+      }
+      if (sql.includes('UPDATE projects SET cover_object_key = ?')) {
+        projectRow.cover_object_key = String(params[0])
+        projectRow.cover_file_name = String(params[1])
+        projectRow.cover_content_type = String(params[2])
+        projectRow.cover_size = Number(params[3])
+        projectRow.cover_uploaded_at = '2026-08-24 14:00:00'
+      }
+      if (sql.includes('UPDATE projects SET cover_object_key = NULL')) {
+        projectRow.cover_object_key = null
+        projectRow.cover_file_name = null
+        projectRow.cover_content_type = null
+        projectRow.cover_size = null
+        projectRow.cover_uploaded_at = null
       }
       if (sql.includes('INSERT INTO translation_cache')) {
         translationCache.set(`${params[0]}|${params[1]}|${params[2]}`, {
@@ -170,6 +214,9 @@ interface MockR2Value {
 const mockR2Values = new Map<string, MockR2Value>([[
   projectRow.executable_object_key!,
   { bytes: executableBody, contentType: projectRow.executable_content_type! }
+], [
+  projectRow.cover_object_key!,
+  { bytes: coverBody, contentType: projectRow.cover_content_type! }
 ]])
 
 function mockR2Object(key: string, value: MockR2Value) {
@@ -335,23 +382,47 @@ assert.match(await home.text(), /<div id="app">.+<\/div>/s, '已知路由 SSR �
 
 const projectsPage = await request('/projects')
 assert.equal(projectsPage.status, 200, '/projects 状态码')
-assert.doesNotMatch(await projectsPage.text(), /\/api\/projects\/wawawa\/download/, '项目列表不直接显示下载入口')
+const projectsPageBody = await projectsPage.text()
+assert.doesNotMatch(projectsPageBody, /\/api\/projects\/wawawa\/download/, '项目列表不直接显示下载入口')
+assert.match(projectsPageBody, /class="project-card-cover"/, '有封面时项目列表应显示 Banner 缩略图')
+assert.match(projectsPageBody, /\/api\/projects\/wawawa\/cover/, '项目列表封面应使用同源 R2 图片接口')
 
 const projectDetailPage = await request('/projects/wawawa')
 const projectDetailBody = await projectDetailPage.text()
 assert.equal(projectDetailPage.status, 200, '/projects/wawawa 状态码')
+assert.match(projectDetailBody, /class="project-detail-cover"/, '有封面时项目详情应显示宽幅 Banner')
+assert.match(projectDetailBody, /\/api\/projects\/wawawa\/cover/, '项目详情封面应使用同源 R2 图片接口')
 assert.match(projectDetailBody, /\/api\/projects\/wawawa\/download/, '具有可执行文件的项目详情应显示下载入口')
 assert.match(projectDetailBody, /下载项目文件/, '项目详情下载按钮应有清晰文案')
 
 const projectDetailApi = await request('/api/projects/wawawa?locale=zh-CN')
 assert.equal(projectDetailApi.status, 200, '项目详情 API 状态码')
 const projectDetailData = await projectDetailApi.json() as {
-  project: { hasExecutable: boolean; executableFileName: string; executableSize: number; executableObjectKey?: string }
+  project: {
+    hasExecutable: boolean
+    executableFileName: string
+    executableSize: number
+    executableObjectKey?: string
+    hasCover: boolean
+    coverUrl: string
+    coverObjectKey?: string
+  }
 }
 assert.equal(projectDetailData.project.hasExecutable, true, '项目 API 应标记已上传可执行文件')
 assert.equal(projectDetailData.project.executableFileName, 'wawawa.apk', '项目 API 应返回下载文件名')
 assert.equal(projectDetailData.project.executableSize, executableBody.byteLength, '项目 API 应返回文件大小')
 assert.equal(projectDetailData.project.executableObjectKey, undefined, '项目 API 不应暴露 R2 对象键')
+assert.equal(projectDetailData.project.hasCover, true, '项目 API 应标记已上传封面')
+assert.match(projectDetailData.project.coverUrl, /^\/api\/projects\/wawawa\/cover\?v=/, '项目 API 应返回可缓存失效的同源封面 URL')
+assert.equal(projectDetailData.project.coverObjectKey, undefined, '项目 API 不应暴露封面 R2 对象键')
+
+const projectCover = await request('/api/projects/wawawa/cover')
+assert.equal(projectCover.status, 200, '项目封面状态码')
+assert.equal(await projectCover.text(), 'mock-cover-image', '项目封面应流式返回 R2 对象内容')
+assert.equal(projectCover.headers.get('content-type'), 'image/webp', '项目封面应保留图片 MIME')
+assert.equal(projectCover.headers.get('etag'), '"mock-etag"', '项目封面应返回 R2 HTTP ETag')
+assert.match(projectCover.headers.get('cache-control') || '', /immutable/, '带版本参数的项目封面应允许长期缓存')
+assert.equal(projectCover.headers.get('x-content-type-options'), 'nosniff', '项目封面应禁止 MIME 嗅探')
 
 const projectDownload = await request('/api/projects/wawawa/download')
 assert.equal(projectDownload.status, 200, '项目文件下载状态码')
@@ -394,12 +465,54 @@ assert.match(replacementDownload.headers.get('content-disposition') || '', /%E6%
 const removeResponse = await adminRequest('/api/admin/projects/1/executable', { method: 'DELETE' })
 assert.equal(removeResponse.status, 200, '管理员应能移除项目可执行文件')
 assert.equal(projectRow.executable_object_key, null, '移除后 D1 不应继续标记项目具有可执行文件')
-assert.equal(mockR2Values.size, 0, '移除后 R2 不应残留当前项目对象')
+assert.equal([...mockR2Values.values()].some((value) => value.contentType === 'application/vnd.android.package-archive'), false, '移除后 R2 不应残留当前项目可执行文件')
 
 const removedDownload = await request('/api/projects/wawawa/download')
 assert.equal(removedDownload.status, 404, '没有可执行文件的项目下载接口应返回 404')
 const projectWithoutDownload = await request('/projects/wawawa')
 assert.doesNotMatch(await projectWithoutDownload.text(), /\/api\/projects\/wawawa\/download/, '移除文件后项目详情不应显示下载按钮')
+
+const invalidCover = await adminRequest('/api/admin/projects/1/cover', {
+  method: 'PUT',
+  headers: {
+    'content-type': 'text/html',
+    'x-project-file-name': encodeURIComponent('not-an-image.html')
+  },
+  body: '<script>alert(1)</script>'
+})
+assert.equal(invalidCover.status, 415, '项目封面应拒绝非图片 MIME')
+
+const replacementCoverBody = new TextEncoder().encode('replacement-cover')
+const oldCoverKey = projectRow.cover_object_key
+const uploadCoverResponse = await adminRequest('/api/admin/projects/1/cover', {
+  method: 'PUT',
+  headers: {
+    'content-type': 'image/jpeg',
+    'x-project-file-name': encodeURIComponent('新版封面.jpg')
+  },
+  body: replacementCoverBody
+})
+assert.equal(uploadCoverResponse.status, 200, '管理员应能上传并替换项目封面')
+const uploadCoverData = await uploadCoverResponse.json() as { fileName: string; size: number; coverUrl: string }
+assert.equal(uploadCoverData.fileName, '新版封面.jpg', '封面上传响应应保留原始文件名')
+assert.equal(uploadCoverData.size, replacementCoverBody.byteLength, '封面上传响应应返回 R2 实际对象大小')
+assert.match(uploadCoverData.coverUrl, /^\/api\/projects\/wawawa\/cover\?v=/, '封面上传响应应返回新版本 URL')
+assert.equal(oldCoverKey ? mockR2Values.has(oldCoverKey) : true, false, '替换成功后应删除旧封面 R2 对象')
+assert.ok(projectRow.cover_object_key && mockR2Values.has(projectRow.cover_object_key), 'D1 应关联新封面 R2 对象键')
+
+const replacementCover = await request('/api/projects/wawawa/cover')
+assert.equal(await replacementCover.text(), 'replacement-cover', '公开封面应立即返回替换后的 R2 对象')
+assert.equal(replacementCover.headers.get('content-type'), 'image/jpeg', '替换封面应更新响应 MIME')
+
+const removeCoverResponse = await adminRequest('/api/admin/projects/1/cover', { method: 'DELETE' })
+assert.equal(removeCoverResponse.status, 200, '管理员应能移除项目封面')
+assert.equal(projectRow.cover_object_key, null, '移除封面后 D1 不应继续标记项目具有封面')
+assert.equal(mockR2Values.size, 0, '移除可执行文件和封面后 R2 不应残留项目对象')
+
+const removedCover = await request('/api/projects/wawawa/cover')
+assert.equal(removedCover.status, 404, '没有封面的项目图片接口应返回 404')
+const projectWithoutCover = await request('/projects/wawawa')
+assert.doesNotMatch(await projectWithoutCover.text(), /class="project-detail-cover"/, '移除封面后项目详情不应显示空白 Banner')
 
 const aiTranslationCases = [
   ['/api/translations/ui?locale=en', 'messages', '[en] 首页'],
@@ -498,6 +611,7 @@ console.log('✓ Turnstile 校验要求正确 action、hostname、token 与 Work
 console.log('✓ 公开页面在 Turnstile 验证前不返回 SSR 内容，验证后使用签名 HttpOnly Cookie 放行')
 console.log('✓ 项目详情按 D1 元数据显示下载按钮，并通过私有 R2 binding 流式下载文件')
 console.log('✓ 管理员可上传、替换和移除项目文件，D1 与 R2 状态同步更新')
+console.log('✓ 项目列表和详情按 D1 元数据显示 R2 封面，管理员可上传、替换和移除')
 console.log('✓ 界面、关于、项目列表、项目文章和捐助说明按语言翻译并命中缓存')
 console.log('✓ 繁体中文使用 OpenCC 台湾词汇转换且不调用 AI')
 console.log('✓ 英语与日语使用 Qwen3 30B，兼容结构化 choices 输出')

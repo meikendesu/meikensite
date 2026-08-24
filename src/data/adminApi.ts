@@ -22,8 +22,8 @@ export async function adminApi<T = Record<string, unknown>>(url: string, options
   return data
 }
 
-export async function uploadProjectExecutable<T>(projectId: number, file: File): Promise<T> {
-  const response = await fetch(`/api/admin/projects/${projectId}/executable`, {
+async function uploadProjectAsset<T>(projectId: number, asset: 'executable' | 'cover', file: File, fallbackMessage: string): Promise<T> {
+  const response = await fetch(`/api/admin/projects/${projectId}/${asset}`, {
     method: 'PUT',
     headers: {
       'content-type': file.type || 'application/octet-stream',
@@ -33,9 +33,17 @@ export async function uploadProjectExecutable<T>(projectId: number, file: File):
   })
   const data = await response.json().catch(() => ({})) as T & { error?: string }
   if (!response.ok) {
-    throw new AdminApiError(data.error || '项目文件上传失败。', response.status)
+    throw new AdminApiError(data.error || fallbackMessage, response.status)
   }
   return data
+}
+
+export function uploadProjectExecutable<T>(projectId: number, file: File): Promise<T> {
+  return uploadProjectAsset(projectId, 'executable', file, '项目文件上传失败。')
+}
+
+export function uploadProjectCover<T>(projectId: number, file: File): Promise<T> {
+  return uploadProjectAsset(projectId, 'cover', file, '项目封面上传失败。')
 }
 
 export async function requireAdminSession(router: Router): Promise<AdminSession | null> {

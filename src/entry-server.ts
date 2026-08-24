@@ -18,6 +18,10 @@ interface ProjectRow {
   executableFileName: string | null
   executableSize: number | null
   executableUploadedAt: string | null
+  hasCover: number
+  coverFileName: string | null
+  coverSize: number | null
+  coverUploadedAt: string | null
 }
 
 interface AboutContentRow {
@@ -37,6 +41,19 @@ interface SiteMethodRow extends Omit<SiteMethod, 'qrEnabled' | 'enabled'> {
   enabled: number
 }
 
+function normalizeProjectRow(project: ProjectRow): Project {
+  const hasCover = Boolean(project.hasCover)
+  return {
+    ...project,
+    published: Boolean(project.published),
+    hasExecutable: Boolean(project.hasExecutable),
+    hasCover,
+    coverUrl: hasCover
+      ? `/api/projects/${encodeURIComponent(project.slug)}/cover?v=${encodeURIComponent(project.coverUploadedAt || '')}`
+      : null
+  }
+}
+
 // 服务端入口：按请求 URL 渲染对应页面为 HTML 字符串
 async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: Project[]; pagination: ProjectPagination }> {
   const empty = { projects: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 } }
@@ -49,7 +66,10 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
         is_published AS published, published_at AS publishedAt,
         created_at AS createdAt, updated_at AS updatedAt,
         0 AS hasExecutable, NULL AS executableFileName,
-        NULL AS executableSize, NULL AS executableUploadedAt
+        NULL AS executableSize, NULL AS executableUploadedAt,
+        CASE WHEN cover_object_key IS NOT NULL THEN 1 ELSE 0 END AS hasCover,
+        cover_file_name AS coverFileName, cover_size AS coverSize,
+        cover_uploaded_at AS coverUploadedAt
        FROM projects WHERE is_published = 1
        ORDER BY published_at DESC, updated_at DESC, id DESC LIMIT 10`
       ).all<ProjectRow>(),
@@ -57,11 +77,7 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
     ])
     const total = Number(countRow?.count || 0)
     return {
-      projects: result.results.map((project) => ({
-        ...project,
-        published: Boolean(project.published),
-        hasExecutable: Boolean(project.hasExecutable)
-      })),
+      projects: result.results.map(normalizeProjectRow),
       pagination: { page: 1, pageSize: 10, total, totalPages: Math.max(1, Math.ceil(total / 10)) }
     }
   }
@@ -73,16 +89,15 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
         created_at AS createdAt, updated_at AS updatedAt,
         CASE WHEN executable_object_key IS NOT NULL THEN 1 ELSE 0 END AS hasExecutable,
         executable_file_name AS executableFileName, executable_size AS executableSize,
-        executable_uploaded_at AS executableUploadedAt
+        executable_uploaded_at AS executableUploadedAt,
+        CASE WHEN cover_object_key IS NOT NULL THEN 1 ELSE 0 END AS hasCover,
+        cover_file_name AS coverFileName, cover_size AS coverSize,
+        cover_uploaded_at AS coverUploadedAt
        FROM projects WHERE slug = ? AND is_published = 1`
     ).bind(slug).first<ProjectRow>()
     return {
       ...empty,
-      projects: row ? [{
-        ...row,
-        published: Boolean(row.published),
-        hasExecutable: Boolean(row.hasExecutable)
-      }] : []
+      projects: row ? [normalizeProjectRow(row)] : []
     }
   }
   return empty

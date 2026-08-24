@@ -67,6 +67,14 @@ watch(locale, async () => {
         class="work-card"
         :style="projectStyle(p)"
       >
+        <img
+          v-if="p.coverUrl"
+          class="project-card-cover"
+          :src="p.coverUrl"
+          :alt="`${p.name} · ${t('projects.coverImage')}`"
+          loading="lazy"
+          decoding="async"
+        />
         <span class="work-tag">{{ p.tag }}</span>
         <h2>{{ p.name }}</h2>
         <p class="work-desc">{{ p.desc }}</p>

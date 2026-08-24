@@ -18,6 +18,8 @@ const ADMIN_GATE_MAX_AGE = 60 * 60 * 12
 const SITE_GATE_MAX_AGE = 60 * 60 * 24
 const MAX_JSON_BYTES = 512 * 1024
 const MAX_EXECUTABLE_BYTES = 100_000_000
+const MAX_COVER_BYTES = 10_000_000
+const COVER_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 const TURNSTILE_SITE_KEY = '0x4AAAAAAESUPQBRhDhcPH_1'
 const TRANSLATION_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8' as const
 const SUPPORTED_LOCALES: Locale[] = ['zh-CN', 'zh-TW', 'en', 'ja']
@@ -240,6 +242,7 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 }
 
 function normalizeProject(row) {
+  const hasCover = Boolean(row.cover_object_key)
   return {
     id: row.id,
     slug: row.slug,
@@ -256,7 +259,16 @@ function normalizeProject(row) {
     executableSize: row.executable_size === null || row.executable_size === undefined
       ? null
       : Number(row.executable_size),
-    executableUploadedAt: row.executable_uploaded_at || null
+    executableUploadedAt: row.executable_uploaded_at || null,
+    hasCover,
+    coverUrl: hasCover
+      ? `/api/projects/${encodeURIComponent(row.slug)}/cover?v=${encodeURIComponent(row.cover_uploaded_at || '')}`
+      : null,
+    coverFileName: row.cover_file_name || null,
+    coverSize: row.cover_size === null || row.cover_size === undefined
+      ? null
+      : Number(row.cover_size),
+    coverUploadedAt: row.cover_uploaded_at || null
   }
 }
 
@@ -292,7 +304,8 @@ async function listProjects(db, includeDrafts = false) {
   const result = await db.prepare(
     `SELECT id, slug, tag, title, description, markdown, is_published,
       published_at, created_at, updated_at, executable_object_key,
-      executable_file_name, executable_size, executable_uploaded_at
+      executable_file_name, executable_size, executable_uploaded_at,
+      cover_object_key, cover_file_name, cover_size, cover_uploaded_at
        FROM projects ${where} ORDER BY published_at DESC, updated_at DESC, id DESC`
   ).all()
   return result.results.map(normalizeProject)
@@ -304,7 +317,8 @@ async function listPublishedProjectPage(db: D1Database, page: number) {
   const [result, countRow] = await Promise.all([
     db.prepare(
       `SELECT id, slug, tag, title, description, '' AS markdown, is_published,
-        published_at, created_at, updated_at
+        published_at, created_at, updated_at,
+        cover_object_key, cover_file_name, cover_size, cover_uploaded_at
        FROM projects WHERE is_published = 1
        ORDER BY published_at DESC, updated_at DESC, id DESC LIMIT ? OFFSET ?`
     ).bind(pageSize, offset).all(),
@@ -703,7 +717,8 @@ async function prewarmProjectTranslations(db: D1Database, ai: Ai, slug?: string)
   const row = await db.prepare(
     `SELECT id, slug, tag, title, description, markdown, is_published,
       published_at, created_at, updated_at, executable_object_key,
-      executable_file_name, executable_size, executable_uploaded_at
+      executable_file_name, executable_size, executable_uploaded_at,
+      cover_object_key, cover_file_name, cover_size, cover_uploaded_at
        FROM projects WHERE slug = ? AND is_published = 1`
   ).bind(slug).first()
   if (!row) return
@@ -865,6 +880,31 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
     }
   }
 
+  const projectCoverMatch = request.method === 'GET' && pathname.match(/^\/api\/projects\/([^/]+)\/cover$/)
+  if (projectCoverMatch) {
+    const slug = decodeURIComponent(projectCoverMatch[1])
+    const row = await env.DB.prepare(
+      `SELECT cover_object_key AS objectKey, cover_content_type AS contentType
+       FROM projects
+       WHERE slug = ? AND is_published = 1 AND cover_object_key IS NOT NULL`
+    ).bind(slug).first<{ objectKey: string; contentType: string }>()
+    if (!row?.objectKey || !COVER_CONTENT_TYPES.has(row.contentType)) {
+      return json({ error: '项目封面不存在。' }, 404)
+    }
+
+    const object = await env.PROJECT_FILES.get(row.objectKey)
+    if (!object) return json({ error: '项目封面不存在。' }, 404)
+
+    const headers = new Headers()
+    object.writeHttpMetadata(headers)
+    headers.set('content-type', row.contentType)
+    headers.set('content-length', String(object.size))
+    headers.set('etag', object.httpEtag)
+    headers.set('cache-control', 'public, max-age=31536000, immutable')
+    headers.set('x-content-type-options', 'nosniff')
+    return new Response(object.body, { headers })
+  }
+
   const projectDownloadMatch = request.method === 'GET' && pathname.match(/^\/api\/projects\/([^/]+)\/download$/)
   if (projectDownloadMatch) {
     const slug = decodeURIComponent(projectDownloadMatch[1])
@@ -1002,6 +1042,88 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
   }
 
   if (session.must_change_password) return json({ error: '首次使用必须先修改密码。' }, 403)
+
+  const coverMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/cover$/)
+  if (coverMatch && (request.method === 'PUT' || request.method === 'DELETE')) {
+    const id = Number(coverMatch[1])
+    if (!Number.isInteger(id) || id < 1) return json({ error: '项目 ID 无效。' }, 400)
+    const existing = await env.DB.prepare(
+      `SELECT id, slug, cover_object_key AS objectKey, cover_file_name AS fileName
+       FROM projects WHERE id = ?`
+    ).bind(id).first<{ id: number; slug: string; objectKey: string | null; fileName: string | null }>()
+    if (!existing) return json({ error: '项目不存在。' }, 404)
+
+    if (request.method === 'DELETE') {
+      await env.DB.prepare(
+        `UPDATE projects SET cover_object_key = NULL, cover_file_name = NULL,
+          cover_content_type = NULL, cover_size = NULL,
+          cover_uploaded_at = NULL WHERE id = ?`
+      ).bind(id).run()
+      if (existing.objectKey) await env.PROJECT_FILES.delete(existing.objectKey)
+      return json({ ok: true, hasCover: false })
+    }
+
+    const fileName = uploadedFileName(request)
+    if (!fileName) return json({ error: '封面文件名无效。' }, 400)
+    if (!request.body) return json({ error: '请选择要上传的封面图片。' }, 400)
+    const contentType = uploadedContentType(request)
+    if (!COVER_CONTENT_TYPES.has(contentType)) {
+      return json({ error: '封面仅支持 JPG、PNG、WebP 或 AVIF 图片。' }, 415)
+    }
+    const contentLength = Number(request.headers.get('content-length') || 0)
+    if (Number.isFinite(contentLength) && contentLength > MAX_COVER_BYTES) {
+      return json({ error: '封面图片不能超过 10 MB。' }, 413)
+    }
+
+    const objectKey = `projects/${id}/cover/${crypto.randomUUID()}`
+    const stored = await env.PROJECT_FILES.put(objectKey, request.body, {
+      httpMetadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000, immutable'
+      },
+      customMetadata: { projectId: String(id), assetType: 'cover' }
+    })
+    if (stored.size < 1) {
+      await env.PROJECT_FILES.delete(objectKey)
+      return json({ error: '封面图片不能为空。' }, 400)
+    }
+    if (stored.size > MAX_COVER_BYTES) {
+      await env.PROJECT_FILES.delete(objectKey)
+      return json({ error: '封面图片不能超过 10 MB。' }, 413)
+    }
+
+    try {
+      await env.DB.prepare(
+        `UPDATE projects SET cover_object_key = ?, cover_file_name = ?,
+          cover_content_type = ?, cover_size = ?,
+          cover_uploaded_at = CURRENT_TIMESTAMP WHERE id = ?`
+      ).bind(objectKey, fileName, contentType, stored.size, id).run()
+    } catch (error) {
+      await env.PROJECT_FILES.delete(objectKey)
+      throw error
+    }
+
+    if (existing.objectKey && existing.objectKey !== objectKey) {
+      try {
+        await env.PROJECT_FILES.delete(existing.objectKey)
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: 'project_cover_cleanup_failed',
+          projectId: id,
+          message: error instanceof Error ? error.message : 'unknown'
+        }))
+      }
+    }
+    const uploadedAt = stored.uploaded.toISOString()
+    return json({
+      ok: true,
+      hasCover: true,
+      fileName,
+      size: stored.size,
+      uploadedAt,
+      coverUrl: `/api/projects/${encodeURIComponent(existing.slug)}/cover?v=${encodeURIComponent(uploadedAt)}`
+    })
+  }
 
   const executableMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/executable$/)
   if (executableMatch && (request.method === 'PUT' || request.method === 'DELETE')) {
@@ -1227,12 +1349,14 @@ async function handleApi(request: Request, env: Env, pathname: string, ctx: Exec
     const id = Number(pathname.slice('/api/admin/projects/'.length))
     if (!Number.isInteger(id) || id < 1) return json({ error: '项目 ID 无效。' }, 400)
     const existing = await env.DB.prepare(
-      'SELECT slug, executable_object_key AS objectKey FROM projects WHERE id = ?'
-    ).bind(id).first<{ slug: string; objectKey: string | null }>()
+      `SELECT slug, executable_object_key AS executableObjectKey,
+        cover_object_key AS coverObjectKey FROM projects WHERE id = ?`
+    ).bind(id).first<{ slug: string; executableObjectKey: string | null; coverObjectKey: string | null }>()
     await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(id).run()
-    if (existing?.objectKey) {
+    const objectKeys = [existing?.executableObjectKey, existing?.coverObjectKey].filter((key): key is string => Boolean(key))
+    if (objectKeys.length) {
       try {
-        await env.PROJECT_FILES.delete(existing.objectKey)
+        await env.PROJECT_FILES.delete(objectKeys)
       } catch (error) {
         console.error(JSON.stringify({
           event: 'project_file_cleanup_failed',

@@ -47,6 +47,7 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
     pagination: '项目分页',
     previous: '上一页',
     next: '下一页',
+    coverImage: '项目封面',
     publishedAt: '发布',
     updatedAt: '更新',
     listLoadFailed: '项目列表加载失败。'

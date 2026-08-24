@@ -17,6 +17,11 @@ export interface Project {
   executableFileName: string | null
   executableSize: number | null
   executableUploadedAt: string | null
+  hasCover: boolean
+  coverUrl: string | null
+  coverFileName: string | null
+  coverSize: number | null
+  coverUploadedAt: string | null
 }
 
 export interface ProjectPagination {

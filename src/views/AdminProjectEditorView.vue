@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import { useRoute, useRouter } from 'vue-router'
-import { adminApi, requireAdminSession, uploadProjectExecutable } from '../data/adminApi'
+import { adminApi, requireAdminSession, uploadProjectCover, uploadProjectExecutable } from '../data/adminApi'
 import CustomSelect from '../components/CustomSelect.vue'
 import type { Project } from '../types'
 import { beginPageLoading } from '../data/pageLoading'
@@ -15,6 +15,10 @@ const markdownInput = ref(null)
 const executableInput = ref<HTMLInputElement | null>(null)
 const selectedExecutable = ref<File | null>(null)
 const removeExecutable = ref(false)
+const coverInput = ref<HTMLInputElement | null>(null)
+const selectedCover = ref<File | null>(null)
+const selectedCoverPreview = ref('')
+const removeCover = ref(false)
 const saving = ref(false)
 const headingLevel = ref('')
 const today = new Date().toISOString().slice(0, 10)
@@ -31,6 +35,13 @@ const editor = reactive({
 })
 const existingExecutable = reactive({
   hasFile: false,
+  fileName: '',
+  size: null as number | null,
+  uploadedAt: ''
+})
+const existingCover = reactive({
+  hasFile: false,
+  url: '',
   fileName: '',
   size: null as number | null,
   uploadedAt: ''
@@ -71,6 +82,13 @@ async function loadEditor() {
         size: project.executableSize,
         uploadedAt: project.executableUploadedAt || ''
       })
+      Object.assign(existingCover, {
+        hasFile: project.hasCover,
+        url: project.coverUrl || '',
+        fileName: project.coverFileName || '',
+        size: project.coverSize,
+        uploadedAt: project.coverUploadedAt || ''
+      })
     }
     status.value = 'ready'
   } catch (requestError) {
@@ -96,6 +114,11 @@ async function saveProject() {
     })
     editor.id = result.id
     metadataSaved = true
+    if (selectedCover.value) {
+      await uploadProjectCover(result.id, selectedCover.value)
+    } else if (removeCover.value) {
+      await adminApi(`/api/admin/projects/${result.id}/cover`, { method: 'DELETE' })
+    }
     if (selectedExecutable.value) {
       await uploadProjectExecutable(result.id, selectedExecutable.value)
     } else if (removeExecutable.value) {
@@ -104,10 +127,52 @@ async function saveProject() {
     await router.push({ path: '/admin', query: { saved: 'project' } })
   } catch (requestError) {
     const message = requestError instanceof Error ? requestError.message : '项目保存失败。'
-    error.value = metadataSaved ? `项目内容已保存，但文件处理失败：${message}` : message
+    error.value = metadataSaved ? `项目内容已保存，但资源处理失败：${message}` : message
   } finally {
     saving.value = false
   }
+}
+
+function revokeCoverPreview() {
+  if (selectedCoverPreview.value) URL.revokeObjectURL(selectedCoverPreview.value)
+  selectedCoverPreview.value = ''
+}
+
+function selectCover(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
+    error.value = '封面仅支持 JPG、PNG、WebP 或 AVIF 图片。'
+    input.value = ''
+    return
+  }
+  if (file.size < 1) {
+    error.value = '封面图片不能为空。'
+    input.value = ''
+    return
+  }
+  if (file.size > 10_000_000) {
+    error.value = '请选择不超过 10 MB 的封面图片。'
+    input.value = ''
+    return
+  }
+  revokeCoverPreview()
+  selectedCover.value = file
+  selectedCoverPreview.value = URL.createObjectURL(file)
+  removeCover.value = false
+  error.value = ''
+}
+
+function clearCoverSelection() {
+  selectedCover.value = null
+  revokeCoverPreview()
+  if (coverInput.value) coverInput.value.value = ''
+}
+
+function markCoverForRemoval() {
+  clearCoverSelection()
+  removeCover.value = true
 }
 
 function selectExecutable(event: Event) {
@@ -209,6 +274,7 @@ function insertList(ordered = false) {
 }
 
 onMounted(loadEditor)
+onUnmounted(revokeCoverPreview)
 </script>
 
 <template>
@@ -234,6 +300,28 @@ onMounted(loadEditor)
         <label class="admin-published"><input v-model="editor.published" type="checkbox" /> 公开发布</label>
       </div>
       <label>简介<textarea v-model="editor.description" maxlength="500" rows="3"></textarea></label>
+
+      <section class="admin-executable-field admin-cover-field" aria-labelledby="project-cover-title">
+        <div class="admin-executable-heading">
+          <div>
+            <strong id="project-cover-title">项目封面 Banner</strong>
+            <small>支持 JPG、PNG、WebP 或 AVIF，最大 10 MB；建议使用 16:7 横向图片。</small>
+          </div>
+          <label class="file-button">{{ existingCover.hasFile ? '选择替换封面' : '选择封面' }}<input ref="coverInput" type="file" accept="image/jpeg,image/png,image/webp,image/avif" @change="selectCover" /></label>
+        </div>
+        <img v-if="selectedCoverPreview" class="admin-cover-preview" :src="selectedCoverPreview" alt="待上传的项目封面预览" />
+        <img v-else-if="existingCover.hasFile && !removeCover" class="admin-cover-preview" :src="existingCover.url" alt="当前项目封面预览" />
+        <div v-if="selectedCover" class="admin-executable-status">
+          <span><i class="fa-solid fa-image"></i><strong>{{ selectedCover.name }}</strong><small>{{ formatFileSize(selectedCover.size) }} · 保存后上传</small></span>
+          <button type="button" @click="clearCoverSelection">取消选择</button>
+        </div>
+        <div v-else-if="existingCover.hasFile && !removeCover" class="admin-executable-status">
+          <span><i class="fa-solid fa-image"></i><strong>{{ existingCover.fileName }}</strong><small>{{ formatFileSize(existingCover.size) }} · 已上传</small></span>
+          <button class="danger" type="button" @click="markCoverForRemoval">移除封面</button>
+        </div>
+        <p v-else-if="removeCover" class="form-message">保存后将移除当前封面。 <button type="button" @click="removeCover = false">撤销</button></p>
+        <p v-else class="admin-help">未上传封面时，项目列表和详情继续使用当前纯色布局。</p>
+      </section>
 
       <section class="admin-executable-field" aria-labelledby="project-executable-title">
         <div class="admin-executable-heading">
