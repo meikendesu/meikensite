@@ -13,7 +13,7 @@ import LocaleSwitcher from '../components/LocaleSwitcher.vue'
       <div class="home-avatar" aria-hidden="true">M</div>
     </section>
 
-    <nav class="module-grid" :aria-label="t('a11y.modules')">
+    <nav class="module-grid home-index" :aria-label="t('a11y.modules')">
       <router-link class="module-card about-card" to="/about"
         ><i class="fa-solid fa-circle-info"></i><strong>{{ t('home.about') }}</strong
         ><small>{{ t('home.aboutSub') }}</small

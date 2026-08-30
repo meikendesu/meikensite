@@ -10,6 +10,7 @@
     "dev:worker": "npm run build && wrangler dev",
     "build": "vite build --outDir dist/client && vite build --ssr src/entry-server.ts --outDir dist/server",
     "typecheck": "wrangler types && vue-tsc --noEmit -p tsconfig.json",
+    "verify:ui": "tsx scripts/verify-ui-design.ts",
     "verify:worker": "npm run build && tsx scripts/verify-worker.ts",
     "preview": "vite preview --outDir dist/client",
     "db:migrate:local": "wrangler d1 migrations apply meikensite-db --local",

@@ -52,15 +52,15 @@
   --site-font-family: "Noto Sans", Arial, sans-serif;
 
   /* macOS 语义色（浅色外观） */
-  --label-1: rgba(0, 0, 0, 0.85);
-  --label-2: rgba(0, 0, 0, 0.56);
-  --label-3: rgba(0, 0, 0, 0.30);
-  --separator: rgba(0, 0, 0, 0.10);
-  --fill: rgba(0, 0, 0, 0.05);
-  --bg-window: #f5f5f7;
-  --bg-control: rgba(255, 255, 255, 0.72);
-  --bg-card: rgba(255, 255, 255, 0.66);
-  --bg-toolbar: rgba(250, 250, 252, 0.82);
+  --label-1: rgba(16, 19, 24, 0.92);
+  --label-2: rgba(16, 19, 24, 0.60);
+  --label-3: rgba(16, 19, 24, 0.38);
+  --separator: rgba(16, 19, 24, 0.14);
+  --fill: rgba(16, 19, 24, 0.05);
+  --bg-window: #f4f6f8;
+  --bg-control: rgba(255, 255, 255, 0.90);
+  --bg-card: rgba(255, 255, 255, 0.78);
+  --bg-toolbar: rgba(244, 246, 248, 0.92);
 
   /* 系统强调色与系统色彩（浅色） */
   --accent: #007aff;
@@ -72,6 +72,7 @@
   --sys-yellow: #ffcc00;
   --danger: #d70015;
   --focus-ring: color-mix(in srgb, var(--accent) 22%, transparent);
+  --studio-guide: #007aff;
 
   /* 窗口控件（红绿灯） */
   --tl-red: #ff5f57;
@@ -116,10 +117,10 @@
     --label-3: rgba(255, 255, 255, 0.30);
     --separator: rgba(255, 255, 255, 0.12);
     --fill: rgba(255, 255, 255, 0.06);
-    --bg-window: #161618;
-    --bg-control: rgba(255, 255, 255, 0.10);
-    --bg-card: rgba(255, 255, 255, 0.08);
-    --bg-toolbar: rgba(30, 30, 32, 0.82);
+    --bg-window: #0d0f12;
+    --bg-control: rgba(255, 255, 255, 0.08);
+    --bg-card: rgba(255, 255, 255, 0.06);
+    --bg-toolbar: rgba(13, 15, 18, 0.94);
 
     --accent: #0a84ff;
     --sys-blue: #0a84ff;
@@ -129,6 +130,7 @@
     --sys-purple: #bf5af2;
     --sys-yellow: #ffd60a;
     --danger: #ff453a;
+    --studio-guide: #248cff;
 
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
     --shadow-2: 0 2px 5px rgba(0, 0, 0, 0.5), 0 14px 30px rgba(0, 0, 0, 0.55);
@@ -146,10 +148,7 @@ html {
 
 body {
   @apply m-0 min-h-screen min-w-0 overflow-x-hidden text-ink;
-  background:
-    radial-gradient(circle at 96% 1%, rgba(0, 122, 255, 0.07) 0, transparent 34%),
-    radial-gradient(circle at 4% 23%, rgba(0, 122, 255, 0.05) 0, transparent 32%),
-    var(--bg-window);
+  background: var(--bg-window);
 }
 
 a {
@@ -222,7 +221,25 @@ select {
 }
 
 .home-shell {
-  @apply flex h-screen min-h-[620px] flex-col;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  min-height: 100dvh;
+  height: auto;
+  max-width: 1280px;
+  padding: 48px 20px 34px 46px;
+}
+
+.home-shell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 20px;
+  width: 1px;
+  background: var(--studio-guide);
 }
 
 .topbar {
@@ -236,12 +253,12 @@ select {
 }
 
 .avatar-link {
-  @apply grid size-[34px] place-items-center rounded-full text-sm font-bold text-white;
-  background: linear-gradient(145deg, #5e9dff, #007aff);
+  @apply grid size-[34px] place-items-center rounded-full text-sm font-bold text-accent;
+  border: 1px solid var(--accent);
+  background: transparent;
   font:
     700 14px -apple-system,
     sans-serif;
-  box-shadow: 0 3px 8px rgba(0, 122, 255, 0.35);
 }
 
 .back-link {
@@ -257,7 +274,9 @@ select {
 
 /* ---------- 首页引导 ---------- */
 .home-intro {
-  @apply flex items-center justify-between gap-6 px-1 pb-[30px] pt-[clamp(35px,7vh,78px)];
+  position: relative;
+  grid-column: 1 / -1;
+  padding: 36px 0 48px;
 }
 .home-intro-text {
   @apply min-w-0;
@@ -266,86 +285,99 @@ select {
 .page-hero h1,
 .support-hero h1 {
   margin: 10px 0 18px;
-  font-size: clamp(45px, 8vw, 68px);
-  line-height: 1.06;
-  letter-spacing: -0.03em;
-  font-weight: 700;
+  font-size: clamp(44px, 13vw, 64px);
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+  font-weight: 800;
 }
 .home-intro h1 em {
   color: var(--accent);
   font-style: normal;
 }
 .home-intro p {
-  @apply m-0 max-w-[310px] text-base leading-[1.55] text-muted;
+  @apply m-0 max-w-[360px] text-base leading-[1.65] text-muted;
 }
 .home-avatar {
-  @apply grid size-[clamp(84px,18vw,132px)] shrink-0 place-items-center rounded-full text-white;
-  background: linear-gradient(145deg, #5e9dff, #007aff);
-  color: #fff;
+  @apply absolute top-0 right-0 grid size-[76px] place-items-center rounded-full text-accent;
+  border: 1px solid var(--accent);
+  background: transparent;
   font:
-    700 42px -apple-system,
+    750 30px var(--site-font-family),
     sans-serif;
-  box-shadow: 0 12px 30px rgba(0, 122, 255, 0.35);
 }
 
-/* ---------- 模块卡片 ---------- */
+/* ---------- 首页工作台索引 ---------- */
 .module-grid {
-  @apply mt-auto grid grid-cols-2 gap-3.5;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr;
+  border-top: 1px solid var(--separator);
+  border-bottom: 1px solid var(--separator);
 }
 .module-card {
-  @apply relative flex min-h-[clamp(145px,23vh,184px)] flex-col overflow-hidden rounded-card border border-separator p-[18px] shadow-panel transition-[translate,box-shadow] duration-200;
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 24px;
+  grid-template-rows: auto auto;
+  column-gap: 18px;
+  align-items: center;
+  min-height: 102px;
+  padding: 19px 8px 19px 0;
+  border-bottom: 1px solid var(--separator);
+  color: var(--label-1);
+  background: transparent;
+  transition: background 160ms ease;
 }
+.module-card:last-child { border-bottom: 0; }
 .module-card:hover {
-  @apply -translate-y-[3px] shadow-floating;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.module-card > i {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  width: 56px;
+  border-right: 1px solid var(--separator);
+  font-size: 22px;
+  text-align: center;
 }
 .module-card strong {
-  @apply mt-auto text-xl font-semibold tracking-[-0.02em];
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 .module-card small {
-  @apply mt-1 text-[11px] opacity-60;
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  margin-top: 4px;
+  color: var(--label-2);
+  font-size: 12px;
 }
 .module-card b {
-  @apply absolute right-[18px] bottom-5 text-sm font-light;
+  grid-column: 3;
+  grid-row: 1 / 3;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 400;
+  transition: transform 160ms ease;
 }
-.card-icon {
-  font-size: 24px;
-  font-weight: 300;
-}
+.module-card:hover b { transform: translateX(4px); }
 
-/* 卡片用 macOS 系统色的柔和填充（浅色/深色自适应） */
-.about-card {
-  background: rgba(0, 122, 255, 0.12);
-  color: var(--sys-blue);
-}
-.projects-card {
-  background: rgba(255, 149, 0, 0.14);
-  color: var(--sys-orange);
-}
-.contact-card {
-  background: rgba(52, 199, 89, 0.14);
-  color: var(--sys-green);
-}
-.support-card {
-  background: rgba(255, 45, 85, 0.12);
-  color: var(--sys-pink);
-}
-@media (prefers-color-scheme: dark) {
-  .about-card {
-    background: rgba(10, 132, 255, 0.20);
-  }
-  .projects-card {
-    background: rgba(255, 159, 10, 0.18);
-  }
-  .contact-card {
-    background: rgba(48, 209, 88, 0.16);
-  }
-  .support-card {
-    background: rgba(255, 55, 95, 0.18);
-  }
-}
+.about-card > i { color: var(--sys-blue); }
+.projects-card > i { color: var(--sys-orange); }
+.contact-card > i { color: var(--sys-green); }
+.support-card > i { color: var(--sys-pink); }
 
 .site-footer {
-  @apply mx-auto p-3 text-center text-[11px] text-[var(--label-3)];
+  grid-column: 1;
+  margin: 0;
+  padding: 28px 0 0;
+  color: var(--label-3);
+  font-size: 11px;
+  text-align: left;
 }
 
 /* ---------- 子页 ---------- */
@@ -384,8 +416,9 @@ select {
   display: grid;
   place-items: center;
   border-radius: 16px;
-  background: linear-gradient(135deg, #5e9dff, #007aff);
-  color: #fff;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
   font:
     700 28px -apple-system,
     sans-serif;
@@ -827,15 +860,21 @@ select {
     padding-left: 20px;
     padding-right: 20px;
   }
+  .home-shell {
+    padding: 28px 20px 30px 46px;
+  }
   .topbar {
     height: 72px;
     /* padding-left: 54px; */
   }
   .home-intro {
-    padding-top: 42px;
+    padding-top: 116px;
   }
   .module-card {
-    min-height: 164px;
+    grid-template-columns: 54px minmax(0, 1fr) 20px;
+    column-gap: 14px;
+    min-height: 102px;
+    padding-right: 4px;
   }
   .page-hero {
     padding-top: 32px;
@@ -850,14 +889,66 @@ select {
 /* ============ 桌面端适配（≥ 900px） ============ */
 @media (min-width: 900px) {
   .shell {
-    width: min(100%, 1080px);
+    width: min(100%, 1180px);
     max-width: none;
     padding: 72px 32px 42px;
   }
   .home-shell {
-    height: 100vh;
-    min-height: 620px;
-    padding-bottom: 42px;
+    width: min(100%, 1360px);
+    max-width: 1360px;
+    min-height: 100dvh;
+    padding: 72px 72px 34px;
+    grid-template-columns: minmax(0, 0.76fr) minmax(520px, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    column-gap: 64px;
+  }
+  .home-shell::before {
+    left: 42%;
+  }
+  .home-intro {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    padding: 120px 36px 0 0;
+  }
+  .home-avatar {
+    top: 104px;
+    right: 72px;
+    width: 104px;
+    height: 104px;
+    font-size: 38px;
+  }
+  .home-index {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    margin-top: 268px;
+  }
+  .module-card {
+    min-height: 110px;
+  }
+  .module-card strong {
+    font-size: 24px;
+  }
+  .module-card small {
+    font-size: 13px;
+  }
+  .module-card > i {
+    font-size: 24px;
+  }
+  .site-footer,
+  .home-locale {
+    border-top: 1px solid var(--separator);
+  }
+  .site-footer {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .home-locale {
+    grid-column: 2;
+    grid-row: 2;
+    padding-top: 20px;
   }
   .page-shell {
     padding-bottom: 42px;
@@ -928,10 +1019,9 @@ select {
     right: 16px;
   }
 
-  /* 卡片网格多列 */
+  /* 首页保持单列索引；内容页使用既有多列布局。 */
   .module-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    grid-template-columns: 1fr;
   }
   .project-stack {
     grid-template-columns: repeat(3, 1fr);
@@ -960,13 +1050,12 @@ select {
   }
 
   /* 更大标题与间距 */
-  .home-intro h1,
+  .home-intro h1 {
+    font-size: clamp(64px, 5vw, 72px);
+  }
   .page-hero h1,
   .support-hero h1 {
     font-size: clamp(48px, 5vw, 68px);
-  }
-  .home-intro {
-    padding-top: clamp(48px, 9vh, 96px);
   }
   .page-hero {
     padding-top: 56px;
@@ -1141,9 +1230,24 @@ select {
 
 /* ---------- 语言切换器容器 ---------- */
 .home-locale {
+  grid-column: 2;
   display: flex;
-  justify-content: center;
-  padding: 10px 0 24px;
+  justify-content: flex-end;
+  padding: 20px 0 0;
+}
+.home-locale .locale-switcher-trigger {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 8px 12px;
+  color: var(--label-2);
+  font-size: 12px;
+}
+.home-locale .locale-switcher-trigger i {
+  height: auto;
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ---------- Admin 项目内容管理 ---------- */
@@ -1223,7 +1327,7 @@ select {
 .custom-dropdown-trigger {
   @apply flex min-h-[42px] w-full cursor-pointer items-center justify-between gap-3 rounded-[10px] border px-3 py-[9px] text-left text-ink transition-[border-color,box-shadow,background] duration-150;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--separator));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-control) 92%, #fff), var(--bg-control));
+  background: var(--bg-control);
 }
 .custom-dropdown.open .custom-dropdown-trigger,
 .custom-dropdown-trigger:focus-visible {
