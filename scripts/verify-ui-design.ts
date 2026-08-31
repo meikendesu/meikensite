@@ -47,6 +47,11 @@ assert.match(styles, /\.editorial-shell\s+\.content-block/, '关于内容应使�
 assert.match(styles, /\.editorial-shell\s+\.project-stack/, '项目列表应使用开放式纵向索引')
 assert.match(styles, /\.editorial-shell\s+\.contact-options/, '联系方式应使用开放式索引行')
 assert.match(styles, /\.editorial-shell\s+\.payment-card/, '捐助方式应使用开放式账本行')
+assert.match(
+  styles,
+  /\.editorial-shell\s+\.wallet-line\s*\{[^}]*width:\s*auto/s,
+  '捐助地址行应让浏览器扣除左外边距，避免复制按钮被卡片裁切'
+)
 assert.match(styles, /\.editorial-shell\.error-shell/, '错误页应复用相同视觉中轴')
 
 console.log('UI design contract passed')

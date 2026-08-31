@@ -2098,6 +2098,7 @@ select {
 }
 
 .editorial-shell .wallet-line {
+  width: auto;
   margin: 0 0 0 64px;
   padding: 13px 0 0;
   border-top: 1px solid var(--separator);
