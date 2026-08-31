@@ -2,11 +2,12 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import TabBar from './components/TabBar.vue'
+import LocaleSwitcher from './components/LocaleSwitcher.vue'
 import { locale, t } from './i18n'
 import { finishInitialPageLoading, pageLoading } from './data/pageLoading'
 
-// 根组件：skip-link + 路由出口（带淡入淡出过渡）+ 全局底部导航。
-// TabBar 提到此处统一渲染，使每个视图保持单根节点（<transition> 要求单根）。
+// 根组件：skip-link + 路由出口（带淡入淡出过渡）+ 全局语言入口与底部导航。
+// 全局控件在此按路由元数据统一渲染，使每个视图保持单根节点（<transition> 要求单根）。
 const route = useRoute()
 
 // 语言切换时同步更新页面标题
@@ -45,5 +46,11 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
       <component :is="Component" :key="route.fullPath" />
     </transition>
   </router-view>
+  <div
+    v-if="route.meta.localeSwitcher"
+    :class="['page-locale', { 'page-locale-with-tabbar': route.meta.tabbar, 'page-locale-home': route.name === 'home' }]"
+  >
+    <LocaleSwitcher />
+  </div>
   <TabBar v-if="route.meta.tabbar" :class="{ 'tabbar-hidden': tabbarHidden }" />
 </template>

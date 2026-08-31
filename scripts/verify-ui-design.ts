@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const [
+  appView,
+  routerSource,
+  tabBar,
   homeView,
   aboutView,
   projectsView,
@@ -17,6 +20,9 @@ const [
   styles,
   packageJson
 ] = await Promise.all([
+  readFile(new URL('../src/App.vue', import.meta.url), 'utf8'),
+  readFile(new URL('../src/router.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../src/components/TabBar.vue', import.meta.url), 'utf8'),
   readFile(new URL('../src/views/HomeView.vue', import.meta.url), 'utf8'),
   readFile(new URL('../src/views/AboutView.vue', import.meta.url), 'utf8'),
   readFile(new URL('../src/views/ProjectsView.vue', import.meta.url), 'utf8'),
@@ -50,6 +56,21 @@ function assertFilledWithoutHorizontalLines(selector: string) {
 
 assert.match(homeView, /class="module-grid home-index"/, '首页导航应使用开放式工作台索引')
 assert.equal((homeView.match(/class="module-card /g) || []).length, 4, '首页应保留四个原有模块入口')
+assert.doesNotMatch(homeView, /LocaleSwitcher|home-locale/, '首页视图不应再单独渲染语言菜单')
+assert.doesNotMatch(tabBar, /LocaleSwitcher|locale-switcher/, '底部 Tab 不应再包含语言菜单')
+assert.equal((tabBar.match(/<router-link/g) || []).length, 5, '底部 Tab 应恢复为五个页面入口')
+assert.match(appView, /import LocaleSwitcher from '.\/components\/LocaleSwitcher\.vue'/, '根组件应统一承载语言入口')
+assert.match(appView, /v-if="route\.meta\.localeSwitcher"/, '语言入口应由路由元数据控制可见性')
+assert.match(appView, /'page-locale-with-tabbar': route\.meta\.tabbar/, '有底栏的页面应为语言入口预留底部空间')
+for (const routeName of ['home', 'about', 'projects', 'contact', 'support', 'server-error', 'not-found']) {
+  assert.match(
+    routerSource,
+    new RegExp(`name: '${routeName}'[^\\n]*localeSwitcher: true`),
+    `${routeName} 路由应显示左下语言入口`
+  )
+}
+assert.doesNotMatch(routerSource, /name: 'project-detail'[^\n]*localeSwitcher: true/, '项目详情页不应显示语言入口')
+assert.doesNotMatch(routerSource, /name: 'admin[^']*'[^\n]*localeSwitcher: true/, 'Admin 页面不应显示语言入口')
 assert.doesNotMatch(styles, /--studio-guide:/, '首页不应再保留蓝色基准线令牌')
 assert.doesNotMatch(styles, /\.home-shell::before/, '首页不应再显示蓝色竖线')
 assert.match(styles, /\.module-card\s*>\s*i/, '模块入口应为图标、文案与箭头组成的索引行')
@@ -148,20 +169,26 @@ assert.ok(
 )
 assert.match(
   rulesFor('.tabbar'),
-  /width:\s*min\(calc\(100%\s*-\s*24px\),\s*372px\)/,
-  '移动端底栏应利用可用宽度，避免六个入口拥挤'
+  /width:\s*min\(calc\(100%\s*-\s*24px\),\s*320px\)/,
+  '移除语言入口后，移动端底栏应收紧为五项宽度'
 )
+assert.match(rulesFor('.tabbar'), /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/, '移动端底栏应使用五个等宽列')
 assert.match(rulesFor('.tabbar'), /bottom:\s*max\(12px,\s*env\(safe-area-inset-bottom\)\)/, '移动端底栏应适配底部安全区')
 assert.match(rulesFor('.tabbar a'), /min-height:\s*48px/, '移动端底栏入口应提供稳定触控高度')
 assert.match(rulesFor('.tabbar a'), /width:\s*100%/, '移动端底栏入口应均分可点击区域')
-assert.match(rulesFor('.locale-switcher-trigger'), /min-height:\s*48px/, '移动端语言入口应与其他入口保持相同触控高度')
-assert.match(localeSwitcher, /:class="\{ open \}"/, '语言入口应暴露菜单打开态供底栏显示反馈')
-assert.match(rulesFor('.tabbar .locale-switcher-trigger'), /align-content:\s*center/, '底栏语言入口的图标和文字应垂直居中')
-assert.match(rulesFor('.tabbar .locale-switcher-trigger'), /padding:\s*5px\s+2px/, '底栏语言入口应与其他 Tab 使用相同内边距')
+assert.match(localeSwitcher, /:class="\{ open \}"/, '语言入口应暴露菜单打开态供左下入口显示反馈')
+assert.match(rulesFor('#app'), /position:\s*relative/, '根容器应为页面底部语言入口建立定位上下文')
+assert.match(rulesFor('.page-locale'), /position:\s*absolute/, '语言入口应位于页面左侧下部且不覆盖滚动内容')
+assert.match(rulesFor('.page-locale'), /left:\s*20px/, '窄屏语言入口应对齐页面的 20px 基准边距')
+assert.match(rulesFor('.page-locale-with-tabbar'), /bottom:\s*calc\(max\(12px,\s*env\(safe-area-inset-bottom\)\)\s*\+\s*72px\)/, '有底栏时语言入口应位于 Tab 上方')
+assert.match(rulesFor('.page-locale .locale-switcher-trigger'), /min-height:\s*44px/, '左下语言入口应提供稳定触控高度')
+assert.match(rulesFor('.page-locale .locale-switcher-trigger'), /background:\s*var\(--surface-toolbar\)/, '左下语言入口应使用现有工具栏底色')
+assert.match(rulesFor('.page-locale .locale-switcher-menu'), /left:\s*0/, '语言菜单应从左侧文字基线向上展开')
+assert.match(rulesFor('.editorial-shell:not(.detail-shell)'), /padding-bottom:\s*148px/, '移动端公开内页应为语言入口和底部 Tab 预留空间')
 assert.match(
-  rulesFor('.tabbar .locale-switcher.open .locale-switcher-trigger'),
-  /background:\s*var\(--surface-accent\)/,
-  '语言菜单展开时应显示与选中 Tab 一致的底色反馈'
+  styles,
+  /@media\s*\(min-width:\s*900px\)[\s\S]*?\.page-locale\s*\{[^}]*left:\s*max\(72px,\s*calc\(\(100vw\s*-\s*1360px\)\s*\/\s*2\s*\+\s*72px\)\)/s,
+  '桌面端语言入口应与左侧文字列对齐'
 )
 assert.match(aboutView, /class="shell page-shell editorial-shell about-shell"/, '关于页应提供独立的内容高度调整作用域')
 assert.match(rulesFor('.editorial-shell.about-shell > .content-block'), /align-self:\s*start/, '关于简介卡片高度应由内容决定')

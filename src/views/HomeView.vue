@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { t } from '../i18n'
-import LocaleSwitcher from '../components/LocaleSwitcher.vue'
 </script>
 
 <template>
@@ -37,6 +36,5 @@ import LocaleSwitcher from '../components/LocaleSwitcher.vue'
     </nav>
 
     <footer class="site-footer">{{ t('home.footer') }}</footer>
-    <div class="home-locale"><LocaleSwitcher /></div>
   </main>
 </template>

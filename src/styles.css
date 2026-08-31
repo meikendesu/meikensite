@@ -157,6 +157,11 @@ body {
   background: var(--bg-window);
 }
 
+#app {
+  position: relative;
+  min-height: 100dvh;
+}
+
 a {
   @apply text-inherit no-underline;
 }
@@ -368,12 +373,12 @@ select {
 .support-card > i { color: var(--sys-pink); }
 
 .site-footer {
-  grid-column: 1;
+  grid-column: 1 / -1;
   margin: 0;
-  padding: 28px 0 0;
+  padding: 28px 0 0 88px;
   color: var(--label-2);
   font-size: 11px;
-  text-align: left;
+  text-align: right;
 }
 
 /* ---------- 子页 ---------- */
@@ -741,8 +746,8 @@ select {
   bottom: max(12px, env(safe-area-inset-bottom));
   left: 50%;
   display: grid;
-  width: min(calc(100% - 24px), 372px);
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  width: min(calc(100% - 24px), 320px);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 6px;
   border: 0;
@@ -965,18 +970,13 @@ select {
   .module-card > i {
     font-size: 24px;
   }
-  .site-footer,
-  .home-locale {
+  .site-footer {
     border-top: 1px solid var(--separator);
   }
   .site-footer {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .home-locale {
     grid-column: 2;
     grid-row: 2;
-    padding-top: 20px;
+    padding-left: 0;
   }
   .page-shell {
     padding-bottom: 42px;
@@ -1043,12 +1043,6 @@ select {
   .locale-switcher-trigger:hover {
     background: var(--fill);
   }
-  .tabbar .locale-switcher-menu {
-    top: calc(100% + 8px);
-    bottom: auto;
-    right: 16px;
-  }
-
   /* 首页保持单列索引；内容页使用既有多列布局。 */
   .module-grid {
     grid-template-columns: 1fr;
@@ -1257,28 +1251,6 @@ select {
     opacity: 1;
     transform: scale(1);
   }
-}
-
-/* ---------- 语言切换器容器 ---------- */
-.home-locale {
-  grid-column: 2;
-  display: flex;
-  justify-content: flex-end;
-  padding: 20px 0 0;
-}
-.home-locale .locale-switcher-trigger {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0 8px 12px;
-  color: var(--label-2);
-  font-size: 12px;
-}
-.home-locale .locale-switcher-trigger i {
-  height: auto;
-  font-size: 16px;
-  line-height: 1;
 }
 
 /* ---------- Admin 项目内容管理 ---------- */
@@ -2449,16 +2421,6 @@ select {
     display: none;
   }
 
-  .tabbar .locale-switcher {
-    width: auto;
-    margin-left: auto;
-  }
-
-  .tabbar .locale-switcher-trigger {
-    width: auto;
-    min-height: auto;
-    border-radius: 0;
-  }
 }
 
 /* ============================================================
@@ -2499,8 +2461,7 @@ select {
   background: var(--surface-raised);
 }
 
-.site-footer,
-.home-locale {
+.site-footer {
   border: 0;
 }
 
@@ -2691,6 +2652,52 @@ select {
   background: var(--surface-raised);
 }
 
+.page-locale {
+  position: absolute;
+  z-index: 6;
+  left: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.page-locale-with-tabbar {
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 72px);
+}
+
+.page-locale .locale-switcher {
+  width: auto;
+}
+
+.page-locale .locale-switcher-trigger {
+  width: auto;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-toolbar);
+  color: var(--label-2);
+  box-shadow: var(--shadow-1);
+  font-size: 12px;
+}
+
+.page-locale .locale-switcher-trigger i {
+  height: auto;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.page-locale .locale-switcher.open .locale-switcher-trigger {
+  background: var(--surface-accent);
+  color: var(--accent);
+}
+
+.page-locale .locale-switcher-menu {
+  right: auto;
+  left: 0;
+}
+
 .detail-back-float {
   position: fixed;
   z-index: 7;
@@ -2716,23 +2723,12 @@ select {
 }
 
 @media (max-width: 899px) {
-  .tabbar .locale-switcher-trigger {
-    align-content: center;
-    gap: 2px;
-    padding: 5px 2px;
-    border-radius: 12px;
-    font-size: 9px;
+  .editorial-shell:not(.detail-shell) {
+    padding-bottom: 148px;
   }
 
-  .tabbar .locale-switcher-trigger i {
-    height: 18px;
-    font-size: 17px;
-    line-height: 18px;
-  }
-
-  .tabbar .locale-switcher.open .locale-switcher-trigger {
-    background: var(--surface-accent);
-    color: var(--accent);
+  .page-locale:not(.page-locale-home) {
+    left: 16px;
   }
 }
 
@@ -2754,6 +2750,15 @@ select {
 }
 
 @media (min-width: 900px) {
+  .page-locale {
+    left: max(72px, calc((100vw - 1360px) / 2 + 72px));
+    bottom: 32px;
+  }
+
+  .page-locale-with-tabbar {
+    bottom: 32px;
+  }
+
   .editorial-shell.about-shell > .content-block {
     align-self: start;
   }
@@ -2809,9 +2814,6 @@ select {
     background: var(--surface-accent);
   }
 
-  .tabbar .locale-switcher-trigger {
-    border-radius: 10px;
-  }
 }
 
 /* ============================================================
