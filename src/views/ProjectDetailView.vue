@@ -46,7 +46,7 @@ function formatFileSize(size: number | null) {
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell detail-shell">
+  <main id="main" tabindex="-1" class="shell page-shell editorial-shell detail-shell">
     <PageHeader
       :title="t('detail.title')"
       back-to="/projects"

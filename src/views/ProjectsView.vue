@@ -56,7 +56,7 @@ watch(locale, async () => {
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell">
+  <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
     <section class="page-hero compact">
       <h1>{{ t('projects.title1') }}<br />{{ t('projects.title2') }}</h1>
     </section>

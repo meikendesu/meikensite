@@ -16,7 +16,7 @@ const key = computed(() => KEY_MAP[code.value] || KEY_MAP[404])
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell error-shell">
+  <main id="main" tabindex="-1" class="shell editorial-shell error-shell">
     <div class="error-box">
       <p class="error-code">{{ code }}</p>
       <h1>{{ t(key.title) }}</h1>
