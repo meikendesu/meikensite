@@ -13,6 +13,7 @@ const [
   adminAboutView,
   adminProjectView,
   adminMethodView,
+  localeSwitcher,
   styles,
   packageJson
 ] = await Promise.all([
@@ -27,6 +28,7 @@ const [
   readFile(new URL('../src/views/AdminAboutEditorView.vue', import.meta.url), 'utf8'),
   readFile(new URL('../src/views/AdminProjectEditorView.vue', import.meta.url), 'utf8'),
   readFile(new URL('../src/views/AdminMethodEditorView.vue', import.meta.url), 'utf8'),
+  readFile(new URL('../src/components/LocaleSwitcher.vue', import.meta.url), 'utf8'),
   readFile(new URL('../src/styles.css', import.meta.url), 'utf8'),
   readFile(new URL('../package.json', import.meta.url), 'utf8')
 ])
@@ -52,6 +54,11 @@ assert.doesNotMatch(styles, /--studio-guide:/, '首页不应再保留蓝色基�
 assert.doesNotMatch(styles, /\.home-shell::before/, '首页不应再显示蓝色竖线')
 assert.match(styles, /\.module-card\s*>\s*i/, '模块入口应为图标、文案与箭头组成的索引行')
 assert.doesNotMatch(styles, /linear-gradient\(145deg/, '头像与入口不应继续使用通用渐变光球')
+assert.match(
+  styles,
+  /@media\s*\(max-width:\s*450px\)[\s\S]*?\.home-shell\s*\{[^}]*padding:\s*28px\s+20px\s+30px/s,
+  '手机端首页应使用对称的 20px 左右页边距'
+)
 assert.match(styles, /--surface-soft:/, '公开页面应定义柔和内容底色')
 assert.match(styles, /--surface-raised:/, '公开页面应定义交互层底色')
 assert.match(rulesFor('.module-grid'), /gap:\s*12px/, '首页模块之间应以留白代替横线')
@@ -111,6 +118,10 @@ assert.match(projectsView, /@click="openProject\(p\)"/, '点击项目卡片应�
 assert.match(projectsView, /@keydown\.enter="openProject\(p\)"/, 'Enter 键应打开项目详情')
 assert.match(projectsView, /@keydown\.space\.prevent="openProject\(p\)"/, '空格键应打开项目详情')
 assert.doesNotMatch(detailView, /PageHeader|<header/, '项目详情页不应保留顶部 Header')
+assert.match(detailView, /class="detail-back-float"/, '项目详情页应提供固定悬浮返回按钮')
+assert.match(detailView, /to="\/projects"/, '项目详情返回按钮应回到项目列表')
+assert.match(rulesFor('.detail-back-float'), /position:\s*fixed/, '项目详情返回按钮应固定在视口左上角')
+assert.match(rulesFor('.detail-back-float'), /min-height:\s*44px/, '项目详情返回按钮应保留足够触控高度')
 assert.match(detailView, /<article class="markdown-body"/, '项目正文应保持为主区域的直接 article')
 assert.match(rulesFor('.editorial-shell .detail-download'), /background:\s*transparent/, '下载入口应去除底色')
 assert.match(rulesFor('.editorial-shell .markdown-body'), /background:\s*transparent/, '项目正文应去除底色')
@@ -144,6 +155,17 @@ assert.match(rulesFor('.tabbar'), /bottom:\s*max\(12px,\s*env\(safe-area-inset-b
 assert.match(rulesFor('.tabbar a'), /min-height:\s*48px/, '移动端底栏入口应提供稳定触控高度')
 assert.match(rulesFor('.tabbar a'), /width:\s*100%/, '移动端底栏入口应均分可点击区域')
 assert.match(rulesFor('.locale-switcher-trigger'), /min-height:\s*48px/, '移动端语言入口应与其他入口保持相同触控高度')
+assert.match(localeSwitcher, /:class="\{ open \}"/, '语言入口应暴露菜单打开态供底栏显示反馈')
+assert.match(rulesFor('.tabbar .locale-switcher-trigger'), /align-content:\s*center/, '底栏语言入口的图标和文字应垂直居中')
+assert.match(rulesFor('.tabbar .locale-switcher-trigger'), /padding:\s*5px\s+2px/, '底栏语言入口应与其他 Tab 使用相同内边距')
+assert.match(
+  rulesFor('.tabbar .locale-switcher.open .locale-switcher-trigger'),
+  /background:\s*var\(--surface-accent\)/,
+  '语言菜单展开时应显示与选中 Tab 一致的底色反馈'
+)
+assert.match(aboutView, /class="shell page-shell editorial-shell about-shell"/, '关于页应提供独立的内容高度调整作用域')
+assert.match(rulesFor('.editorial-shell.about-shell > .content-block'), /align-self:\s*start/, '关于简介卡片高度应由内容决定')
+assert.match(rulesFor('.editorial-shell.about-shell .facts-list div'), /min-height:\s*0/, '关于信息卡片不应保留固定最小高度')
 assert.match(rulesFor('.site-footer'), /color:\s*var\(--label-2\)/, '首页页脚文字应保持可读对比度')
 assert.match(rulesFor('.support-note'), /visibility:\s*hidden/, '未触发的捐助提示不应留下空白浮层')
 assert.match(rulesFor('.support-note.show'), /visibility:\s*visible/, '触发后的捐助提示应正常显示')

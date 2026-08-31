@@ -25,7 +25,7 @@ watch(locale, loadContent)
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
+  <main id="main" tabindex="-1" class="shell page-shell editorial-shell about-shell">
     <template v-if="content">
       <section class="page-hero">
         <h1>{{ content.heroTitleLine1 }}<br />{{ content.heroTitleLine2 }}</h1>

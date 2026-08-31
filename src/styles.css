@@ -892,7 +892,7 @@ select {
     padding-right: 20px;
   }
   .home-shell {
-    padding: 28px 20px 30px 46px;
+    padding: 28px 20px 30px;
   }
   .topbar {
     height: 72px;
@@ -2691,6 +2691,51 @@ select {
   background: var(--surface-raised);
 }
 
+.detail-back-float {
+  position: fixed;
+  z-index: 7;
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-toolbar);
+  color: var(--label-1);
+  box-shadow: var(--shadow-2);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.detail-back-float:hover {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
+@media (max-width: 899px) {
+  .tabbar .locale-switcher-trigger {
+    align-content: center;
+    gap: 2px;
+    padding: 5px 2px;
+    border-radius: 12px;
+    font-size: 9px;
+  }
+
+  .tabbar .locale-switcher-trigger i {
+    height: 18px;
+    font-size: 17px;
+    line-height: 18px;
+  }
+
+  .tabbar .locale-switcher.open .locale-switcher-trigger {
+    background: var(--surface-accent);
+    color: var(--accent);
+  }
+}
+
 @media (max-width: 450px) {
   .editorial-shell .page-hero {
     padding-bottom: 28px;
@@ -2709,6 +2754,23 @@ select {
 }
 
 @media (min-width: 900px) {
+  .editorial-shell.about-shell > .content-block {
+    align-self: start;
+  }
+
+  .editorial-shell.about-shell > .facts-list {
+    align-self: start;
+  }
+
+  .editorial-shell.about-shell .content-block {
+    padding: 22px var(--editorial-card-pad);
+  }
+
+  .editorial-shell.about-shell .facts-list div {
+    min-height: 0;
+    padding: 18px var(--editorial-card-pad);
+  }
+
   .editorial-shell .content-block {
     padding-top: 26px;
   }

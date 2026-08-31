@@ -40,7 +40,7 @@ async function choose(code: Locale) {
 </script>
 
 <template>
-  <div class="locale-switcher">
+  <div class="locale-switcher" :class="{ open }">
     <div v-if="open" class="lang-backdrop" @click="open = false"></div>
     <button
       class="locale-switcher-trigger"
