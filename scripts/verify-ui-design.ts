@@ -12,12 +12,31 @@ const [homeView, aboutView, projectsView, detailView, contactView, supportView, 
   readFile(new URL('../src/styles.css', import.meta.url), 'utf8')
 ])
 
+function rulesFor(selector: string) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const matches = [...styles.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'gs'))]
+  assert.ok(matches.length > 0, `找不到样式规则：${selector}`)
+  return matches.map((match) => match[1]).join('\n')
+}
+
+function assertFilledWithoutHorizontalLines(selector: string) {
+  const rule = rulesFor(selector)
+  assert.match(rule, /background:\s*var\(--surface-[^)]+\)/, `${selector} 应使用层级底色`)
+  const lastBorderReset = rule.lastIndexOf('border: 0')
+  const lastHorizontalLine = Math.max(rule.lastIndexOf('border-top:'), rule.lastIndexOf('border-bottom:'))
+  assert.ok(lastBorderReset > lastHorizontalLine, `${selector} 不应使用横向分隔线`)
+}
+
 assert.match(homeView, /class="module-grid home-index"/, '首页导航应使用开放式工作台索引')
 assert.equal((homeView.match(/class="module-card /g) || []).length, 4, '首页应保留四个原有模块入口')
 assert.match(styles, /--studio-guide:/, '设计令牌应包含首页蓝色基准线')
 assert.match(styles, /\.home-shell::before/, '首页应以一条基准线连接身份区与导航索引')
 assert.match(styles, /\.module-card\s*>\s*i/, '模块入口应为图标、文案与箭头组成的索引行')
 assert.doesNotMatch(styles, /linear-gradient\(145deg/, '头像与入口不应继续使用通用渐变光球')
+assert.match(styles, /--surface-soft:/, '公开页面应定义柔和内容底色')
+assert.match(styles, /--surface-raised:/, '公开页面应定义交互层底色')
+assert.match(rulesFor('.module-grid'), /gap:\s*12px/, '首页模块之间应以留白代替横线')
+assertFilledWithoutHorizontalLines('.module-card')
 
 for (const [name, view] of [
   ['关于页', aboutView],
@@ -47,11 +66,38 @@ assert.match(styles, /\.editorial-shell\s+\.content-block/, '关于内容应使�
 assert.match(styles, /\.editorial-shell\s+\.project-stack/, '项目列表应使用开放式纵向索引')
 assert.match(styles, /\.editorial-shell\s+\.contact-options/, '联系方式应使用开放式索引行')
 assert.match(styles, /\.editorial-shell\s+\.payment-card/, '捐助方式应使用开放式账本行')
+assert.match(rulesFor('.editorial-shell .contact-options'), /gap:\s*12px/, '联系方式卡片之间应保留稳定间距')
+assert.match(rulesFor('.editorial-shell .contact-row'), /display:\s*grid/, '手机端联系方式应使用稳定网格')
+assert.match(
+  rulesFor('.editorial-shell .contact-row'),
+  /grid-template-columns:\s*48px\s+minmax\(0,\s*1fr\)\s+32px/,
+  '手机端联系方式应固定图标列与操作列，并让文字列弹性伸缩'
+)
+assert.match(rulesFor('.editorial-shell .contact-row > div'), /min-width:\s*0/, '联系方式文字列应允许安全收缩')
+for (const selector of [
+  '.editorial-shell .content-block',
+  '.editorial-shell .facts-list div',
+  '.editorial-shell .work-card',
+  '.editorial-shell .contact-row',
+  '.editorial-shell .payment-card',
+  '.editorial-shell .detail-download',
+  '.editorial-shell .markdown-body',
+  '.editorial-shell.error-shell .error-box'
+]) {
+  assertFilledWithoutHorizontalLines(selector)
+}
 assert.match(
   styles,
   /\.editorial-shell\s+\.wallet-line\s*\{[^}]*width:\s*auto/s,
   '捐助地址行应让浏览器扣除左外边距，避免复制按钮被卡片裁切'
 )
 assert.match(styles, /\.editorial-shell\.error-shell/, '错误页应复用相同视觉中轴')
+assert.match(rulesFor('.tabbar a.active'), /background:\s*var\(--surface-accent\)/, '菜单选中态应使用底色而不是下划线')
+assert.ok(
+  rulesFor('.tabbar a.active').lastIndexOf('border: 0') > rulesFor('.tabbar a.active').lastIndexOf('border-bottom'),
+  '菜单选中态不应保留横线'
+)
+assert.match(rulesFor('.support-note'), /visibility:\s*hidden/, '未触发的捐助提示不应留下空白浮层')
+assert.match(rulesFor('.support-note.show'), /visibility:\s*visible/, '触发后的捐助提示应正常显示')
 
 console.log('UI design contract passed')

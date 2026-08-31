@@ -61,6 +61,10 @@
   --bg-control: rgba(255, 255, 255, 0.90);
   --bg-card: rgba(255, 255, 255, 0.78);
   --bg-toolbar: rgba(244, 246, 248, 0.92);
+  --surface-soft: rgba(255, 255, 255, 0.72);
+  --surface-raised: rgba(255, 255, 255, 0.96);
+  --surface-toolbar: rgba(255, 255, 255, 0.92);
+  --surface-accent: rgba(0, 122, 255, 0.12);
 
   /* 系统强调色与系统色彩（浅色） */
   --accent: #007aff;
@@ -121,6 +125,10 @@
     --bg-control: rgba(255, 255, 255, 0.08);
     --bg-card: rgba(255, 255, 255, 0.06);
     --bg-toolbar: rgba(13, 15, 18, 0.94);
+    --surface-soft: #15191f;
+    --surface-raised: #1b2028;
+    --surface-toolbar: rgba(21, 25, 31, 0.96);
+    --surface-accent: rgba(10, 132, 255, 0.16);
 
     --accent: #0a84ff;
     --sys-blue: #0a84ff;
@@ -849,10 +857,16 @@ select {
   text-align: center;
   font-size: 12px;
   box-shadow: var(--shadow-2);
-  transition: transform 0.25s;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s, opacity 0.18s, visibility 0s linear 0.25s;
 }
 .support-note.show {
   transform: translate(-50%, 0);
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
 }
 
 @media (max-width: 450px) {
@@ -1070,6 +1084,7 @@ select {
   }
   .support-note.show {
     transform: translateY(0);
+    visibility: visible;
   }
 }
 
@@ -2417,5 +2432,295 @@ select {
 
   .tabbar .locale-switcher-trigger {
     border-radius: 0;
+  }
+}
+
+/* ============================================================
+   公开页面 · 柔和工作台表面系统
+   - 用底色与留白代替卡片、列表和导航中的横向分隔线
+   - 联系方式始终使用固定图标列、弹性文字列和固定操作列
+   - 保留首页竖向基准线与桌面端固定左侧命题区
+   ============================================================ */
+
+.module-grid {
+  gap: 12px;
+  border: 0;
+}
+
+.module-card {
+  min-height: 100px;
+  padding: 18px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.module-card:last-child {
+  border: 0;
+}
+
+.module-card:hover {
+  background: var(--surface-raised);
+}
+
+.module-card > i {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.site-footer,
+.home-locale {
+  border: 0;
+}
+
+.editorial-shell .page-hero {
+  border: 0;
+}
+
+.editorial-shell .content-block {
+  padding: 26px var(--editorial-card-pad);
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell .facts-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  border: 0;
+  background: transparent;
+}
+
+.editorial-shell .facts-list div {
+  min-height: 88px;
+  padding: 22px var(--editorial-card-pad);
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell .project-stack {
+  gap: 14px;
+  border: 0;
+}
+
+.editorial-shell .work-card {
+  padding: 24px var(--editorial-card-pad);
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell .work-card:hover {
+  background: var(--surface-raised);
+}
+
+.editorial-shell .project-card-cover {
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.editorial-shell .contact-options {
+  gap: 12px;
+  border: 0;
+}
+
+.editorial-shell .contact-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 32px;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  min-height: 92px;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  text-align: left;
+}
+
+.editorial-shell .contact-row > div {
+  min-width: 0;
+}
+
+.editorial-shell .contact-row:hover {
+  background: var(--surface-raised);
+}
+
+.editorial-shell .row-icon {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.editorial-shell .contact-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.editorial-shell .contact-row b {
+  position: static;
+  margin: 0;
+  justify-self: end;
+}
+
+.editorial-shell .payment-list {
+  gap: 14px;
+  border: 0;
+}
+
+.editorial-shell .payment-card {
+  padding: 20px var(--editorial-card-pad);
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell .payment-icon {
+  border: 0;
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.editorial-shell .wallet-line {
+  width: auto;
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.editorial-shell .wallet-line button {
+  border: 0;
+  border-radius: 9px;
+  background: var(--surface-accent);
+}
+
+.editorial-shell .topbar {
+  border: 0;
+}
+
+.editorial-shell .project-detail-cover {
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell .detail-download {
+  padding: 18px var(--editorial-card-pad);
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell .markdown-body {
+  padding: 28px var(--editorial-card-pad) 42px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.editorial-shell.error-shell .error-box {
+  max-width: 600px;
+  padding: 28px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface-soft);
+}
+
+.tabbar {
+  border: 0;
+  background: var(--surface-toolbar);
+}
+
+.tabbar a {
+  border: 0;
+}
+
+.tabbar a.active {
+  border: 0;
+  background: var(--surface-accent);
+}
+
+.locale-switcher-trigger {
+  border: 0;
+  background: transparent;
+}
+
+.locale-switcher-menu {
+  border: 0;
+  background: var(--surface-raised);
+}
+
+@media (max-width: 450px) {
+  .editorial-shell .page-hero {
+    padding-bottom: 28px;
+  }
+
+  .editorial-shell .content-block,
+  .editorial-shell .work-card,
+  .editorial-shell .payment-card,
+  .editorial-shell .markdown-body {
+    padding-inline: 16px;
+  }
+
+  .editorial-shell .payment-heading {
+    padding-bottom: 16px;
+  }
+}
+
+@media (min-width: 900px) {
+  .editorial-shell .content-block {
+    padding-top: 26px;
+  }
+
+  .editorial-shell .facts-list div {
+    min-height: 100px;
+  }
+
+  .editorial-shell .work-card {
+    padding: 24px;
+  }
+
+  .editorial-shell .contact-row {
+    padding: 20px;
+  }
+
+  .editorial-shell .payment-card {
+    padding: 24px;
+  }
+
+  .tabbar {
+    background: var(--surface-toolbar);
+  }
+
+  .tabbar a {
+    border: 0;
+    border-radius: 10px;
+  }
+
+  .tabbar a:hover {
+    background: var(--surface-raised);
+  }
+
+  .tabbar a.active {
+    border: 0;
+    background: var(--surface-accent);
+  }
+
+  .tabbar .locale-switcher-trigger {
+    border-radius: 10px;
   }
 }
