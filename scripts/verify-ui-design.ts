@@ -30,9 +30,19 @@ for (const [name, view] of [
   assert.match(view, /class="[^"]*editorial-shell[^"]*"/, `${name}应接入主页面的编辑式视觉框架`)
 }
 
-assert.match(styles, /--editorial-axis:/, '内页设计令牌应包含双区布局的中轴位置')
-assert.match(styles, /\.editorial-shell::before/, '内页应使用与首页同源的蓝色结构线')
-assert.doesNotMatch(styles, /\.editorial-shell::before\s*\{[^}]*z-index:\s*-1/s, '内页蓝色结构线不应被压到页面背景后')
+assert.doesNotMatch(styles, /--editorial-axis:/, '内页不应再保留中轴线位置令牌')
+assert.doesNotMatch(styles, /\.editorial-shell::before/, '内页不应再显示蓝色结构线')
+assert.match(styles, /--editorial-card-pad:/, '内页应使用统一的卡片横向内边距令牌')
+assert.match(
+  styles,
+  /\.editorial-shell\s*>\s*\.page-hero\s*\{[^}]*position:\s*sticky/s,
+  '桌面端内页左侧命题区应在滚动时固定'
+)
+assert.match(
+  styles,
+  /@media\s*\(max-width:\s*450px\)[\s\S]*?\.editorial-shell\s*\{[^}]*padding-inline:\s*16px/s,
+  '手机端内页应使用对称的 16px 页边距'
+)
 assert.match(styles, /\.editorial-shell\s+\.content-block/, '关于内容应使用开放式编辑排版')
 assert.match(styles, /\.editorial-shell\s+\.project-stack/, '项目列表应使用开放式纵向索引')
 assert.match(styles, /\.editorial-shell\s+\.contact-options/, '联系方式应使用开放式索引行')

@@ -1832,28 +1832,16 @@ select {
 
 /* ============================================================
    公开内页 · 与首页同源的编辑式双区系统
-   - 蓝色结构线连接页面命题与内容索引
-   - 内容、项目、联系方式与捐助方式都使用开放式行布局
+   - 桌面端使用固定命题栏与可滚动内容账本
+   - 内容、项目、联系方式与捐助方式都使用对称的行内边距
    - 保留既有路由、数据与交互，只调整视觉层级
    ============================================================ */
-:root {
-  --editorial-axis: 20px;
-}
 
 .editorial-shell {
   position: relative;
+  --editorial-card-pad: 20px;
   min-height: 100dvh;
-  padding: 0 20px 116px 46px;
-}
-
-.editorial-shell::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--editorial-axis);
-  width: 1px;
-  background: var(--studio-guide);
+  padding: 0 20px 116px;
 }
 
 .editorial-shell .page-hero {
@@ -1880,7 +1868,7 @@ select {
 }
 
 .editorial-shell .content-block {
-  padding: 34px 0 30px;
+  padding: 34px var(--editorial-card-pad) 30px;
   border: 0;
   border-bottom: 1px solid var(--separator);
   border-radius: 0;
@@ -1917,7 +1905,7 @@ select {
   gap: 24px;
   align-items: baseline;
   min-height: 96px;
-  padding: 27px 0;
+  padding: 27px var(--editorial-card-pad);
 }
 
 .editorial-shell .facts-list span {
@@ -1942,7 +1930,7 @@ select {
 
 .editorial-shell .work-card {
   min-height: 0;
-  padding: 28px 0;
+  padding: 28px var(--editorial-card-pad);
   border: 0;
   border-bottom: 1px solid var(--separator);
   border-radius: 0;
@@ -2022,7 +2010,7 @@ select {
 .editorial-shell .contact-row {
   position: relative;
   min-height: 112px;
-  padding: 28px 4px 28px 0;
+  padding: 28px var(--editorial-card-pad);
   border: 0;
   border-bottom: 1px solid var(--separator);
   border-radius: 0;
@@ -2071,7 +2059,7 @@ select {
 }
 
 .editorial-shell .payment-card {
-  padding: 28px 0;
+  padding: 28px var(--editorial-card-pad);
   border: 0;
   border-bottom: 1px solid var(--separator);
   border-radius: 0;
@@ -2138,7 +2126,7 @@ select {
 }
 
 .editorial-shell .detail-download {
-  padding: 18px 0;
+  padding: 18px var(--editorial-card-pad);
   border: 0;
   border-top: 1px solid var(--separator);
   border-bottom: 1px solid var(--separator);
@@ -2147,7 +2135,7 @@ select {
 }
 
 .editorial-shell .markdown-body {
-  padding: 28px 0 42px;
+  padding: 28px var(--editorial-card-pad) 42px;
   font-size: 16px;
   line-height: 1.9;
 }
@@ -2183,8 +2171,8 @@ select {
 
 @media (max-width: 450px) {
   .editorial-shell {
-    padding-right: 20px;
-    padding-left: 46px;
+    --editorial-card-pad: 16px;
+    padding-inline: 16px;
   }
 
   .editorial-shell .facts-list div {
@@ -2199,11 +2187,8 @@ select {
 }
 
 @media (min-width: 900px) {
-  :root {
-    --editorial-axis: 42%;
-  }
-
   .editorial-shell {
+    --editorial-card-pad: 24px;
     display: grid;
     grid-template-columns: minmax(360px, 0.76fr) minmax(0, 1fr);
     grid-auto-rows: min-content;
@@ -2216,9 +2201,12 @@ select {
   }
 
   .editorial-shell > .page-hero {
+    position: sticky;
+    top: 72px;
     grid-column: 1;
     grid-row: 1 / span 6;
     align-self: start;
+    max-height: calc(100dvh - 72px);
     padding: 112px 40px 0 0;
     border-bottom: 0;
   }
@@ -2260,7 +2248,7 @@ select {
     grid-template-rows: auto auto auto auto 1fr;
     column-gap: 34px;
     align-items: start;
-    padding: 28px 0;
+    padding: 28px var(--editorial-card-pad);
   }
 
   .editorial-shell .project-card-cover {
@@ -2287,7 +2275,7 @@ select {
   .editorial-shell .contact-row {
     flex-direction: row;
     align-items: center;
-    padding: 28px 4px 28px 0;
+    padding: 28px var(--editorial-card-pad);
   }
 
   .editorial-shell .contact-row b {
