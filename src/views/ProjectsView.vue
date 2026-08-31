@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, inject, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { locale, t } from '../i18n'
 import { ProjectStoreKey } from '../data/projects'
 import { beginPageLoading } from '../data/pageLoading'
 import type { Project } from '../types'
 
 const projectStore = inject(ProjectStoreKey)!
+const router = useRouter()
 const { projects, pagination } = projectStore
 const loadError = ref('')
 
@@ -15,6 +17,10 @@ const HUES = [210, 150, 30, 340, 270, 50, 190, 10]
 function projectStyle(project: Project) {
   const seed = String(project.slug || project.id).split('').reduce((total, char) => total + char.charCodeAt(0), 0)
   return { '--card-hue': HUES[seed % HUES.length] }
+}
+
+function openProject(project: Project) {
+  void router.push(`/projects/${project.slug}`)
 }
 
 async function goToPage(page: number) {
@@ -66,6 +72,12 @@ watch(locale, async () => {
         :key="p.id"
         class="work-card"
         :style="projectStyle(p)"
+        role="link"
+        tabindex="0"
+        :aria-label="`${t('common.viewProject')}：${p.name}`"
+        @click="openProject(p)"
+        @keydown.enter="openProject(p)"
+        @keydown.space.prevent="openProject(p)"
       >
         <img
           v-if="p.coverUrl"
@@ -79,14 +91,6 @@ watch(locale, async () => {
         <h2>{{ p.name }}</h2>
         <p class="work-desc">{{ p.desc }}</p>
         <p class="work-meta">{{ t('projects.publishedAt') }} {{ p.publishedAt }} · {{ t('projects.updatedAt') }} {{ p.updatedAt }}</p>
-        <div class="work-actions">
-          <router-link
-            class="work-btn"
-            :to="`/projects/${p.slug}`"
-            :aria-label="`${t('common.viewProject')}：${p.name}`"
-            ><i class="fa-solid fa-eye"></i> {{ t('common.viewProject') }}</router-link
-          >
-        </div>
       </article>
     </section>
     <nav v-if="pagination.totalPages > 1" class="project-pagination" :aria-label="t('projects.pagination')">
