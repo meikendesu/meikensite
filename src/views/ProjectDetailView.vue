@@ -2,7 +2,6 @@
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
-import PageHeader from '../components/PageHeader.vue'
 import { locale, t } from '../i18n'
 import { ProjectStoreKey } from '../data/projects'
 import { beginPageLoading } from '../data/pageLoading'
@@ -46,14 +45,7 @@ function formatFileSize(size: number | null) {
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell detail-shell">
-    <PageHeader
-      :title="t('detail.title')"
-      back-to="/projects"
-      :back-label="t('common.backProjects')"
-      avatar-to="/contact"
-      :avatar-label="t('nav.contact')"
-    />
+  <main id="main" tabindex="-1" class="shell page-shell editorial-shell detail-shell">
     <template v-if="project && hasContent">
       <section class="page-hero compact">
         <h1>{{ project.name }}</h1>

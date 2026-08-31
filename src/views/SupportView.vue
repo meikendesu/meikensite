@@ -55,7 +55,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell">
+  <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
     <section class="page-hero">
       <h1>{{ t('support.title') }}</h1>
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>

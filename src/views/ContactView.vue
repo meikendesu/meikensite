@@ -40,7 +40,7 @@ watch(locale, () => loadMethods(true))
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell">
+  <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
     <section class="page-hero compact">
       <h1>{{ t('contact.title') }}</h1>
       <p class="hero-copy">{{ t('contact.heroCopy') }}</p>
