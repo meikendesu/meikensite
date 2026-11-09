@@ -48,13 +48,15 @@ async function choose(code: Locale) {
       :aria-label="t('language.label')"
       :aria-expanded="open"
       @click="toggle"
+      @keydown.esc="open = false"
     >
-      <i class="fa-solid fa-globe"></i>{{ current.short }}
+      <i class="fa-solid fa-globe" aria-hidden="true"></i><span>{{ current.label }}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
     </button>
     <div
       v-if="open"
       class="locale-switcher-menu"
       role="menu"
+      @keydown.esc="open = false"
     >
       <button
         v-for="o in options"

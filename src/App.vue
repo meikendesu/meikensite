@@ -1,56 +1,37 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import TabBar from './components/TabBar.vue'
+import SiteNavigation from './components/SiteNavigation.vue'
 import LocaleSwitcher from './components/LocaleSwitcher.vue'
 import { locale, t } from './i18n'
 import { finishInitialPageLoading, pageLoading } from './data/pageLoading'
 
-// 根组件：skip-link + 路由出口（带淡入淡出过渡）+ 全局语言入口与底部导航。
-// 全局控件在此按路由元数据统一渲染，使每个视图保持单根节点（<transition> 要求单根）。
 const route = useRoute()
-
-// 语言切换时同步更新页面标题
+const isAdmin = computed(() => route.path.startsWith('/admin'))
 watch(locale, () => {
-  if (typeof route.meta?.titleKey === 'string') document.title = t(route.meta.titleKey)
+  if (typeof route.meta.titleKey === 'string') document.title = t(route.meta.titleKey)
 })
-
-// TabBar 滚动自动隐藏/显示：向下滚动隐藏，向上滚动显示
-const tabbarHidden = ref(false)
-let lastScrollY = 0
-
-function onScroll() {
-  const y = window.scrollY
-  const delta = y - lastScrollY
-  if (Math.abs(delta) < 8) return // 阈值，避免轻微滚动闪烁
-  tabbarHidden.value = delta > 0
-  lastScrollY = y
-}
-
-onMounted(() => {
-  window.addEventListener('scroll', onScroll, { passive: true })
-  window.requestAnimationFrame(finishInitialPageLoading)
-})
-onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
+onMounted(() => window.requestAnimationFrame(finishInitialPageLoading))
 </script>
 
 <template>
   <a class="skip-link" href="#main">{{ t('a11y.skip') }}</a>
+  <div class="site-layout" :class="{ 'admin-layout': isAdmin }">
+    <SiteNavigation :admin="isAdmin" />
+    <div class="site-workspace">
+      <header class="site-topbar">
+        <router-link to="/" class="site-wordmark" aria-label="MEIKEN">MEIKEN</router-link>
+        <span v-if="isAdmin" class="workspace-label">内容管理</span>
+        <LocaleSwitcher v-else />
+      </header>
+      <router-view v-slot="{ Component }">
+        <component :is="Component" :key="route.path" />
+      </router-view>
+    </div>
+  </div>
   <transition name="loader-fade">
     <div v-if="pageLoading" class="page-loading" role="status" aria-live="polite" :aria-label="t('a11y.pageLoading')">
       <span class="page-loading-ring" aria-hidden="true"></span>
     </div>
   </transition>
-  <router-view v-slot="{ Component }">
-    <transition name="fade" mode="out-in">
-      <component :is="Component" :key="route.fullPath" />
-    </transition>
-  </router-view>
-  <div
-    v-if="route.meta.localeSwitcher"
-    :class="['page-locale', { 'page-locale-with-tabbar': route.meta.tabbar, 'page-locale-home': route.name === 'home' }]"
-  >
-    <LocaleSwitcher />
-  </div>
-  <TabBar v-if="route.meta.tabbar" :class="{ 'tabbar-hidden': tabbarHidden }" />
 </template>

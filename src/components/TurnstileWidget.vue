@@ -58,7 +58,8 @@ onMounted(async () => {
     widgetId = turnstile.render(container.value, {
       sitekey: props.siteKey,
       action: props.action,
-      theme: 'auto',
+      theme: 'light',
+      size: 'flexible',
       callback: (token: string) => emit('verified', token),
       'expired-callback': () => emit('expired'),
       'error-callback': () => emit('error')

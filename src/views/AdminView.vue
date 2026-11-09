@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
 import { adminApi } from '../data/adminApi'
@@ -212,6 +212,10 @@ onMounted(async () => {
     }
     await checkSession()
     if (route.query.saved) await router.replace('/admin')
+    if (status.value === 'ready' && ['#admin-projects', '#admin-contact', '#admin-donation'].includes(route.hash)) {
+      await nextTick()
+      document.getElementById(route.hash.slice(1))?.scrollIntoView({ behavior: 'instant', block: 'start' })
+    }
   } catch {
     status.value = 'hidden'
     error.value = ''
@@ -267,13 +271,13 @@ onMounted(async () => {
     </form>
 
     <template v-else-if="status === 'ready'">
-      <section class="admin-panel">
+      <section id="admin-about" class="admin-panel">
         <div class="admin-section-title">
-          <div><h2>关于页面</h2><p class="admin-help">只维护简体中文源内容；访客选择其他语言时按需翻译。</p></div>
+          <div><h2>关于内容</h2><p class="admin-help">在主页的“关于我”区块展示；其他语言按需翻译。</p></div>
           <router-link class="work-btn" to="/admin/about">编辑关于页面</router-link>
         </div>
       </section>
-      <section class="admin-panel">
+      <section id="admin-projects" class="admin-panel">
         <div class="admin-section-title">
           <h2>项目文章</h2>
           <router-link class="work-btn" to="/admin/projects/new">新建项目</router-link>
@@ -290,7 +294,7 @@ onMounted(async () => {
         <p v-else class="form-message">暂无项目。</p>
       </section>
 
-      <section v-for="group in methodGroups" :key="group.category" class="admin-panel admin-method-group">
+      <section v-for="group in methodGroups" :id="'admin-' + group.category" :key="group.category" class="admin-panel admin-method-group">
         <div class="admin-section-title">
           <div class="admin-group-heading"><span><i :class="group.icon"></i></span><div><h2>{{ group.title }}</h2><small>拖动卡片可调整公开页面顺序</small></div></div>
           <router-link class="work-btn" :to="`/admin/methods/new?category=${group.category}`">添加{{ group.title }}</router-link>

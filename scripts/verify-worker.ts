@@ -119,7 +119,11 @@ function statement(sql: string) {
       if (sql.includes('FROM admin_sessions s')) {
         return { token_hash: String(params[0]), expires_at: '2099-01-01 00:00:00', must_change_password: 0 }
       }
-      if (sql.includes('FROM about_content')) return params[0] === 'zh-CN' ? aboutRow : null
+      if (sql.includes('FROM about_content')) {
+        if (params[0] !== 'zh-CN') return null
+        if (!sql.includes('AS heroTitleLine1')) return aboutRow
+        return { locale: aboutRow.locale, heroTitleLine1: aboutRow.hero_title_line_1, heroTitleLine2: aboutRow.hero_title_line_2, heroCopy: aboutRow.hero_copy, introHeading: aboutRow.intro_heading, introParagraph1: aboutRow.intro_paragraph_1, introParagraph2: aboutRow.intro_paragraph_2, factsJson: aboutRow.facts_json }
+      }
       if (sql.includes('COUNT(*) AS count FROM projects')) return { count: 1 }
       if (sql.includes('title AS name') && sql.includes('FROM projects WHERE slug = ?')) {
         return params[0] === projectRow.slug ? projectRowForSsr() : null
@@ -166,7 +170,8 @@ function statement(sql: string) {
         }
       }
       if (sql.includes('FROM site_methods') && sql.includes('is_enabled = 1')) {
-        return { results: [params[0] === 'donation' ? donationMethodRow : siteMethodRow], success: true }
+        const rows = params[0] ? [params[0] === 'donation' ? donationMethodRow : siteMethodRow] : [siteMethodRow, donationMethodRow]
+        return { results: sql.includes('AS methodKey') ? rows.map(row => ({ ...row, methodKey: row.method_key, actionType: row.action_type, qrEnabled: row.qr_enabled, enabled: row.is_enabled, sortOrder: row.sort_order })) : rows, success: true }
       }
       return { results: [], success: true }
     },
@@ -390,7 +395,12 @@ assert.match(await tamperedResponse.text(), /请先完成人机验证/, '被篡�
 
 const home = await request('/')
 assert.equal(home.status, 200, '已知路由状态码')
-assert.match(await home.text(), /<div id="app">.+<\/div>/s, '已知路由 SSR 内容')
+const homeBody = await home.text()
+assert.match(homeBody, /<div id="app">.+<\/div>/s, '已知路由 SSR 内容')
+for (const id of ['home', 'about', 'projects', 'contact', 'support']) assert.ok(homeBody.includes(`id="${id}"`), `首页应包含 ${id} 区块`)
+assert.ok(homeBody.includes(aboutRow.intro_paragraph_1), '主页应预渲染关于正文')
+assert.ok(homeBody.includes('mailto:hello@example.com'), '主页应预渲染联系方式')
+assert.ok(homeBody.includes(donationMethodRow.description), '主页应预渲染捐助方式')
 
 const projectsPage = await request('/projects')
 assert.equal(projectsPage.status, 200, '/projects 状态码')
@@ -524,7 +534,13 @@ assert.equal(mockR2Values.size, 0, '移除可执行文件和封面后 R2 不应�
 const removedCover = await request('/api/projects/wawawa/cover')
 assert.equal(removedCover.status, 404, '没有封面的项目图片接口应返回 404')
 const projectWithoutCover = await request('/projects/wawawa')
-assert.doesNotMatch(await projectWithoutCover.text(), /class="project-detail-cover"/, '移除封面后项目详情不应显示空白 Banner')
+const projectWithoutCoverBody = await projectWithoutCover.text()
+assert.match(projectWithoutCoverBody, /src="\/images\/wawawa-watch.webp"/, 'Wawawa 移除上传封面后应使用内置示意图')
+assert.doesNotMatch(projectWithoutCoverBody, /src="\/api\/projects\/wawawa\/cover/, '移除封面后不应继续请求已删除的 R2 图片')
+projectRow.slug = 'plain-project'
+const plainProject = await request('/projects/plain-project')
+assert.doesNotMatch(await plainProject.text(), /class="project-detail-cover"/, '其他未上传封面的项目不应显示空白 Banner')
+projectRow.slug = 'wawawa'
 
 const aiTranslationCases = [
   ['/api/translations/ui?locale=en', 'messages', '[en] 首页'],

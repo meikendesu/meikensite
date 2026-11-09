@@ -1,17 +1,17 @@
-import { createRouter, type RouterHistory } from 'vue-router'
+import { createRouter, type RouterHistory, type RouteRecordRaw } from 'vue-router'
 import HomeView from './views/HomeView.vue'
 import { t } from './i18n'
 import { beginPageLoading } from './data/pageLoading'
 
 // 使用 HTML5 history 路由（URL 无 #）。
 // 首页保持同步加载，其余视图按路由拆包，避免首屏下载 markdown-it 等详情页依赖。
-const routes = [
+const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: HomeView, meta: { titleKey: 'docTitle.home', localeSwitcher: true } },
-  { path: '/about', name: 'about', component: () => import('./views/AboutView.vue'), meta: { titleKey: 'docTitle.about', tabbar: true, localeSwitcher: true } },
+  { path: '/about', redirect: { path: '/', hash: '#about' } },
   { path: '/projects', name: 'projects', component: () => import('./views/ProjectsView.vue'), meta: { titleKey: 'docTitle.projects', tabbar: true, localeSwitcher: true } },
   { path: '/projects/:id', name: 'project-detail', component: () => import('./views/ProjectDetailView.vue'), meta: { titleKey: 'docTitle.detail' } },
-  { path: '/contact', name: 'contact', component: () => import('./views/ContactView.vue'), meta: { titleKey: 'docTitle.contact', tabbar: true, localeSwitcher: true } },
-  { path: '/support', name: 'support', component: () => import('./views/SupportView.vue'), meta: { titleKey: 'docTitle.support', tabbar: true, localeSwitcher: true } },
+  { path: '/contact', redirect: { path: '/', hash: '#contact' } },
+  { path: '/support', redirect: { path: '/', hash: '#support' } },
   { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { title: 'Admin · MEIKEN' } },
   { path: '/admin/about', name: 'admin-about', component: () => import('./views/AdminAboutEditorView.vue'), meta: { title: '关于页面 · Admin · MEIKEN' } },
   { path: '/admin/projects/new', name: 'admin-project-new', component: () => import('./views/AdminProjectEditorView.vue'), meta: { title: '新建项目 · Admin · MEIKEN' } },
@@ -27,8 +27,12 @@ export function createAppRouter(history: RouterHistory) {
   const router = createRouter({
     history,
     routes,
-    scrollBehavior(_to, _from, savedPosition) {
-      return savedPosition || { top: 0 }
+    scrollBehavior(to, _from, savedPosition) {
+      if (savedPosition) return savedPosition
+      // 只定位已知锚点；私有 Admin 入口的 access 片段不是 CSS 选择器。
+      const anchors = ['#home', '#about', '#projects', '#contact', '#support', '#admin-about', '#admin-projects', '#admin-contact', '#admin-donation', '#main']
+      if (anchors.includes(to.hash)) return { el: to.hash, top: 96, behavior: typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }
+      return { top: 0 }
     }
   })
   let finishRouteLoading: (() => void) | null = null

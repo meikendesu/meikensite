@@ -25,23 +25,19 @@ watch(locale, loadContent)
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell editorial-shell about-shell">
+  <section id="about" class="home-section about-section" aria-labelledby="about-title">
+    <h2 id="about-title">{{ t('home.about') }}</h2>
     <template v-if="content">
-      <section class="page-hero">
-        <h1>{{ content.heroTitleLine1 }}<br />{{ content.heroTitleLine2 }}</h1>
-        <p class="hero-copy">{{ content.heroCopy }}</p>
-      </section>
-      <section class="content-block">
-        <h2>{{ content.introHeading }}</h2>
-        <p>{{ content.introParagraph1 }}</p>
-        <p>{{ content.introParagraph2 }}</p>
-      </section>
-      <section class="facts-list">
+      <div class="about-intro">
+        <div><h3>{{ content.heroTitleLine1 }}<br />{{ content.heroTitleLine2 }}</h3><p v-if="content.heroCopy" class="about-caption">{{ content.heroCopy }}</p></div>
+        <div class="about-prose"><h4>{{ content.introHeading }}</h4><p>{{ content.introParagraph1 }}</p><p v-if="content.introParagraph2">{{ content.introParagraph2 }}</p></div>
+      </div>
+      <div class="facts-list">
         <div v-for="(fact, index) in content.facts" :key="`${index}-${fact.label}`">
           <span>{{ fact.label }}</span><b>{{ fact.value }}</b>
         </div>
-      </section>
+      </div>
     </template>
-    <p v-if="loadError" class="form-message error" role="alert">{{ loadError }}</p>
-  </main>
+    <p v-if="loadError" class="form-message error" role="alert">{{ loadError }} <button class="text-button" type="button" @click="loadContent">{{ t('common.retry') }}</button></p>
+  </section>
 </template>

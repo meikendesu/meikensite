@@ -7,6 +7,7 @@ import { beginPageLoading } from '../data/pageLoading'
 
 const store = inject(SiteMethodStoreKey)
 const error = ref('')
+const note = ref('')
 const methods = computed(() => store.methods.value.filter((method) => method.category === 'contact'))
 
 function methodHref(method: SiteMethod) {
@@ -18,6 +19,7 @@ function methodHref(method: SiteMethod) {
 async function copyValue(method: SiteMethod) {
   try {
     await navigator.clipboard.writeText(method.value)
+    note.value = t('common.copied')
   } catch {
     error.value = t('contact.copyFailed')
   }
@@ -40,11 +42,12 @@ watch(locale, () => loadMethods(true))
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
-    <section class="page-hero compact">
-      <h1>{{ t('contact.title') }}</h1>
+  <section id="contact" class="home-section contact-section" aria-labelledby="contact-title">
+    <h2 id="contact-title">{{ t('home.contact') }}</h2>
+    <div class="section-heading">
+      <h3>{{ t('contact.title') }}</h3>
       <p class="hero-copy">{{ t('contact.heroCopy') }}</p>
-    </section>
+    </div>
     <section class="contact-options">
       <a
         v-for="method in methods.filter(methodHref)"
@@ -71,5 +74,6 @@ watch(locale, () => loadMethods(true))
       </button>
     </section>
     <p v-if="error" class="form-message error" role="alert">{{ error }}</p>
-  </main>
+    <p v-if="note" class="form-message success" role="status">{{ note }}</p>
+  </section>
 </template>

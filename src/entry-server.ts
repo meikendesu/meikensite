@@ -59,7 +59,7 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
   const empty = { projects: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 } }
   if (!env?.DB) return empty
   const pathname = new URL(url, 'https://example.invalid').pathname
-  if (pathname === '/projects') {
+  if (pathname === '/projects' || pathname === '/') {
     const [result, countRow] = await Promise.all([
       env.DB.prepare(
       `SELECT id, slug, tag, title AS name, description AS desc, '' AS markdown,
@@ -113,7 +113,7 @@ function parseFacts(value: string): AboutFact[] {
 }
 
 async function loadInitialAbout(url: string, env?: Env): Promise<AboutContent | null> {
-  if (!env?.DB || new URL(url, 'https://example.invalid').pathname !== '/about') return null
+  if (!env?.DB || !['/', '/about'].includes(new URL(url, 'https://example.invalid').pathname)) return null
   const row = await env.DB.prepare(
     `SELECT locale, hero_title_line_1 AS heroTitleLine1, hero_title_line_2 AS heroTitleLine2,
       hero_copy AS heroCopy, intro_heading AS introHeading,
@@ -130,13 +130,15 @@ async function loadInitialSiteMethods(url: string, env?: Env): Promise<SiteMetho
   if (!env?.DB) return []
   const pathname = new URL(url, 'https://example.invalid').pathname
   const category: SiteMethodCategory | null = pathname === '/contact' ? 'contact' : pathname === '/support' ? 'donation' : null
-  if (!category) return []
-  const result = await env.DB.prepare(
+  if (!category && pathname !== '/') return []
+  // 首页同时预加载两组真实内容，避免首屏为空或等待客户端请求。
+  const query = env.DB.prepare(
     `SELECT id, category, method_key AS methodKey, name, description, value, icon,
       action_type AS actionType, qr_enabled AS qrEnabled, is_enabled AS enabled,
       sort_order AS sortOrder
-     FROM site_methods WHERE category = ? AND is_enabled = 1 ORDER BY sort_order, id`
-  ).bind(category).all<SiteMethodRow>()
+     FROM site_methods WHERE ${category ? 'category = ? AND ' : ''}is_enabled = 1 ORDER BY sort_order, id`
+  )
+  const result = await (category ? query.bind(category) : query).all<SiteMethodRow>()
   return result.results.map((method) => ({
     ...method,
     qrEnabled: Boolean(method.qrEnabled),
@@ -148,10 +150,13 @@ export async function render(url: string, request?: Request, env?: Env) {
   // 服务端只渲染简体中文源内容；访客主动选择语言后再由客户端请求翻译。
   initLocale()
 
+  const pathname = new URL(url, 'https://example.invalid').pathname
+  const contentUrl = ['/about', '/contact', '/support'].includes(pathname) ? '/' : url
+
   const [{ projects, pagination: projectPagination }, siteMethods, aboutContent] = await Promise.all([
-    loadInitialProjects(url, env),
-    loadInitialSiteMethods(url, env),
-    loadInitialAbout(url, env)
+    loadInitialProjects(contentUrl, env),
+    loadInitialSiteMethods(contentUrl, env),
+    loadInitialAbout(contentUrl, env)
   ])
   const { app, router } = createApp({
     url,

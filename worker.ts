@@ -1411,17 +1411,17 @@ function renderSiteChallenge() {
   <meta name="robots" content="noindex,nofollow">
   <title>访问验证 · MEIKEN</title>
   <style>
-    :root{color-scheme:light dark;font-family:"Noto Sans CJK","Noto Sans",system-ui,sans-serif;background:#0f1218;color:#f5f7fb}
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 10%,#1b3555 0,#121923 36%,#0f1218 72%)}
-    main{width:min(100%,430px);padding:36px 28px;border:1px solid rgba(255,255,255,.12);border-radius:28px;background:rgba(27,31,39,.9);box-shadow:0 24px 80px rgba(0,0,0,.35);text-align:center;backdrop-filter:blur(18px)}
-    .mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 22px;border-radius:20px;background:#1688f8;color:white;font-size:25px;font-weight:800;letter-spacing:-.08em;box-shadow:0 12px 32px rgba(22,136,248,.3)}
-    h1{margin:0;font-size:clamp(25px,7vw,32px);line-height:1.2}p{margin:12px 0 24px;color:#aeb8c8;line-height:1.7}.widget{min-height:65px;display:flex;justify-content:center;align-items:center}.status{min-height:24px;margin:20px 0 0;font-size:14px;color:#8ca4c2}.status[data-error="true"]{color:#ff9d9d}
-    noscript{display:block;margin-top:18px;color:#ff9d9d;font-size:14px}@media(max-width:420px){body{padding:16px}main{padding:30px 18px;border-radius:24px}}
+    :root{color-scheme:light;font-family:"Noto Sans CJK","Noto Sans",system-ui,sans-serif;background:#f5f7fa;color:#1d1d1f}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 65% 15%,#e2efff 0,#f5f7fa 65%)}
+    main{width:min(100%,450px);padding:40px 30px;border:1px solid #fff;border-radius:28px;background:rgba(255,255,255,.82);box-shadow:0 16px 60px rgba(40,65,100,.08);text-align:center;backdrop-filter:blur(24px)}
+    .mark{display:grid;place-items:center;width:64px;height:64px;margin:0 auto 26px;border-radius:20px;background:#e5f0ff;color:#007aff;font-size:29px;font-weight:750;letter-spacing:-.06em}
+    h1{margin:0;font-size:clamp(24px,7vw,30px);font-weight:650;letter-spacing:-.04em;line-height:1.35}p{margin:16px 0 26px;color:#667085;line-height:1.8}.widget{min-height:65px;display:flex;justify-content:center;align-items:center}.status{min-height:24px;margin:22px 0 0;font-size:13px;color:#667085}.status[data-error="true"]{color:#c53030}
+    noscript{display:block;margin-top:18px;color:#c53030;font-size:14px}@media(max-width:420px){body{padding:16px}main{padding:30px 14px;border-radius:24px}}
   </style>
   <script>
     window.onSiteChallengeReady=function(){
       var status=document.getElementById('challenge-status');
-      var widgetId=window.turnstile.render('#site-challenge',{sitekey:${siteKey},action:'site_access',theme:'dark',callback:async function(token){
+      var widgetId=window.turnstile.render('#site-challenge',{sitekey:${siteKey},action:'site_access',theme:'light',callback:async function(token){
         status.dataset.error='false';status.textContent='验证成功，正在进入网站…';
         try{
           var response=await fetch('/api/site/access',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({turnstileToken:token})});

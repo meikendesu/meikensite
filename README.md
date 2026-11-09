@@ -2,9 +2,9 @@
 
 Vue 3 + Cloudflare Workers SSR 个人站。项目文章、关于页面内容和管理员认证数据存储在 Cloudflare D1，项目封面与可执行文件存储在私有 Cloudflare R2 存储桶。
 
-当前仓库为 2026-08-31 发布的 `1.5.0` 版本。生产静态资源使用内容哈希与长期不可变缓存，内容页面保持服务端渲染，后台内容和按需翻译继续由 D1 与 Workers AI 提供。
+生产静态资源使用内容哈希与长期不可变缓存，内容页面保持服务端渲染，后台内容和按需翻译由 D1 与 Workers AI 提供。
 
-1.5 延续公开页面的实色工作台设计，并将相同的表面、控件与操作层级应用到 Admin；项目列表支持整卡进入详情，项目详情采用开放正文与桌面左栏下载入口，移动底栏适配窄屏和安全区。性能基线、包体对比和优化取舍记录在 [PERFORMANCE.md](./PERFORMANCE.md)。
+公开界面采用银白与冰蓝的统一设计：主页整合介绍、关于、精选项目、联系与捐助，桌面左侧导航在页面内定位，手机使用适配安全区的底部导航。“查看更多项目”进入独立项目列表，项目详情保留正文和下载入口。Admin 总览、登录与编辑表单使用同一套字体、控件和表面。设计依据与检查范围见 [DESIGN.md](./DESIGN.md)，历史性能基线见 [PERFORMANCE.md](./PERFORMANCE.md)。
 
 ## 技术栈
 
@@ -49,6 +49,7 @@ meikensite/
 npm install
 npm run dev                 # 仅启动 Vite 客户端，不包含 Worker API
 npm run typecheck           # 生成 Worker 绑定类型并检查全部 TypeScript/Vue 文件
+npm run verify:ui           # 验证合并主页 SSR、真实内容注入、旧链接定位和独立项目路由
 npm run fonts:update        # 从官方在线源更新两个本地 Noto 可变 WOFF2 字体
 npm run build               # 更新免费图标目录并产出 dist/client 与 dist/server
 npm run verify:worker       # 构建并执行 SSR、错误页和静态资源回归检查
@@ -61,12 +62,12 @@ npm run dev:worker          # 构建并启动完整 Worker + D1 环境
 
 | 路径 | 用途 |
 | --- | --- |
-| `/` | 首页 |
-| `/about` | 关于 |
+| `/` | 合并主页，包含 home、about、projects、contact、support 五个锚点 |
+| `/about` | 兼容旧链接，定位到 `/#about` |
 | `/projects` | 已发布项目列表，每页 10 条 |
 | `/projects/:slug` | Markdown 项目详情 |
-| `/contact` | 联系方式 |
-| `/support` | USDT、ETH、BTC、PayPal 捐助方式 |
+| `/contact` | 兼容旧链接，定位到 `/#contact` |
+| `/support` | 兼容旧链接，定位到 `/#support` |
 | `/admin` | 私有管理员入口；未授权访问返回 HTTP 404 |
 | `/admin/about` | 简体中文关于页面编辑 |
 | `/admin/projects/new` | 独立的项目与 Markdown 新建页面 |
@@ -155,9 +156,9 @@ npm run deploy
 https://你的域名/admin#access=你的ADMIN_ENTRY_KEY
 ```
 
-所有页面在客户端路由与异步条目加载期间显示圆环占位，加载完成后立即隐藏，不再人为延迟首屏内容。
+客户端路由与异步条目加载期间，顶部显示不遮挡页面的圆环提示，加载完成后立即隐藏。首页在 SSR 阶段同时读取关于、已发布项目、联系与捐助内容；客户端复用注入的数据，保留各区块独立加载错误提示。
 
-项目列表和项目详情根据 D1 封面元数据，通过同源 Worker 接口从私有 R2 桶流式显示 Banner；URL 带上传版本用于更新后自动刷新缓存。项目详情根据文件元数据决定是否显示下载按钮；下载请求由 Worker 校验已发布项目后从私有 R2 桶流式返回，并强制使用附件下载。
+项目封面优先使用管理员上传的 R2 图片，URL 带上传版本用于刷新缓存；Wawawa 没有封面时使用随站点发布的内置示意图，其他无封面项目保持纯色布局。项目详情根据文件元数据决定是否显示下载按钮；下载请求由 Worker 校验已发布项目后从私有 R2 桶流式返回，并强制使用附件下载。新图片位于 `public/images/`，WebP 总计约 34 KB，没有新增运行依赖。
 
 备份生产文章：
 

@@ -80,9 +80,9 @@ watch(locale, async () => {
         @keydown.space.prevent="openProject(p)"
       >
         <img
-          v-if="p.coverUrl"
+          v-if="p.coverUrl || p.slug === 'wawawa'"
           class="project-card-cover"
-          :src="p.coverUrl"
+          :src="p.coverUrl || '/images/wawawa-watch.webp'"
           :alt="`${p.name} · ${t('projects.coverImage')}`"
           loading="lazy"
           decoding="async"
@@ -93,6 +93,7 @@ watch(locale, async () => {
         <p class="work-meta">{{ t('projects.publishedAt') }} {{ p.publishedAt }} · {{ t('projects.updatedAt') }} {{ p.updatedAt }}</p>
       </article>
     </section>
+    <p v-if="!projects.length && !loadError" class="empty-message">{{ t('home.noProjects') }}</p>
     <nav v-if="pagination.totalPages > 1" class="project-pagination" :aria-label="t('projects.pagination')">
       <button type="button" :disabled="pagination.page <= 1" @click="goToPage(pagination.page - 1)">
         <i class="fa-solid fa-chevron-left"></i> {{ t('projects.previous') }}

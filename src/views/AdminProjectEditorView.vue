@@ -320,7 +320,7 @@ onUnmounted(revokeCoverPreview)
           <button class="danger" type="button" @click="markCoverForRemoval">移除封面</button>
         </div>
         <p v-else-if="removeCover" class="form-message">保存后将移除当前封面。 <button type="button" @click="removeCover = false">撤销</button></p>
-        <p v-else class="admin-help">未上传封面时，项目列表和详情继续使用当前纯色布局。</p>
+        <p v-else class="admin-help">未上传封面时，Wawawa 使用内置示意图，其他项目使用纯色布局。</p>
       </section>
 
       <section class="admin-executable-field" aria-labelledby="project-executable-title">
@@ -363,7 +363,7 @@ onUnmounted(revokeCoverPreview)
       <div class="markdown-editor-grid">
         <div class="markdown-pane">
           <span class="markdown-pane-title">Markdown</span>
-          <textarea ref="markdownInput" v-model="editor.markdown" class="markdown-input" maxlength="400000" rows="24" spellcheck="false" required></textarea>
+          <textarea ref="markdownInput" v-model="editor.markdown" class="markdown-input" aria-label="Markdown 正文" maxlength="400000" rows="24" spellcheck="false" required></textarea>
         </div>
         <div class="markdown-pane">
           <span class="markdown-pane-title">实时预览</span>

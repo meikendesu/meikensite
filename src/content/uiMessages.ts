@@ -25,7 +25,9 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
     downloadProject: '下载项目文件',
     copy: '复制',
     open: '打开',
-    close: '关闭'
+    close: '关闭',
+    retry: '重新加载',
+    copied: '已复制。'
   },
   home: {
     hello: '你好，',
@@ -39,7 +41,11 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
     contactSub: '打个招呼',
     support: '捐助我',
     supportSub: '请我喝咖啡',
-    footer: '© 2026 MEIKEN · 慢慢制作。'
+    footer: '© 2026 MEIKEN · 慢慢制作。',
+    explore: '探索项目',
+    moreProjects: '查看更多项目',
+    backTop: '回到顶部',
+    noProjects: '新的作品正在路上。'
   },
   projects: {
     title1: '我正在开发/参与',

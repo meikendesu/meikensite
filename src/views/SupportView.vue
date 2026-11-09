@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { locale, t } from '../i18n'
 import { SiteMethodStoreKey } from '../data/siteMethods'
 import type { SiteMethod } from '../types'
@@ -10,6 +10,13 @@ const methods = computed(() => store.methods.value.filter((method) => method.cat
 const note = ref('')
 const show = ref(false)
 const activeQr = ref<SiteMethod | null>(null)
+const dialog = ref<HTMLDialogElement | null>(null)
+function isUnset(method: SiteMethod) { return !method.value.trim() || method.value.includes('待填写') }
+async function openQr(method: SiteMethod) {
+  activeQr.value = method
+  await nextTick()
+  dialog.value?.showModal()
+}
 let timer: ReturnType<typeof setTimeout> | undefined
 
 function showNote(message: string) {
@@ -20,7 +27,7 @@ function showNote(message: string) {
 }
 
 async function useMethod(method: SiteMethod) {
-  if (method.value.includes('待填写')) {
+  if (isUnset(method)) {
     showNote(`${method.name} ${t('support.methodUnset')}`)
     return
   }
@@ -55,21 +62,24 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
-    <section class="page-hero">
-      <h1>{{ t('support.title') }}</h1>
+  <section id="support" class="home-section support-section" aria-labelledby="support-title">
+    <div class="support-heading">
+      <h2 id="support-title">{{ t('home.support') }}</h2>
+      <h3>{{ t('support.title') }}</h3>
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>
-    </section>
-    <section class="payment-list" :aria-label="t('support.paymentMethods')">
+      <i class="fa-solid fa-mug-hot support-coffee" aria-hidden="true"></i>
+    </div>
+    <div class="payment-list" :aria-label="t('support.paymentMethods')">
       <article v-for="method in methods" :key="method.id" class="payment-card" :class="method.methodKey">
         <div class="payment-heading">
           <span class="payment-icon"><i :class="method.icon"></i></span>
-          <div><h2>{{ method.name }}</h2><p>{{ method.description }}</p></div>
+          <div><h3>{{ method.name }}</h3><p>{{ method.description }}</p></div>
         </div>
-        <button v-if="method.qrEnabled" class="qr-show-btn" type="button" @click="activeQr = method">
+        <button v-if="method.qrEnabled && !isUnset(method)" class="qr-show-btn" type="button" @click="openQr(method)">
           <i class="fa-solid fa-qrcode"></i> {{ t('support.showQr') }}
         </button>
-        <div class="wallet-line">
+        <p v-if="isUnset(method)" class="payment-unset">{{ t('support.methodUnset') }}</p>
+        <div v-else class="wallet-line">
           <code>{{ method.value }}</code>
           <button type="button" @click="useMethod(method)">
             <i :class="method.actionType === 'link' ? 'fa-solid fa-arrow-up-right-from-square' : 'fa-regular fa-copy'"></i>
@@ -77,14 +87,17 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </article>
-    </section>
+    </div>
 
-    <div v-if="activeQr" class="qr-modal" role="dialog" aria-modal="true" @click.self="activeQr = null">
+    <dialog ref="dialog" class="qr-modal" :aria-label="t('support.qrCode')" @close="activeQr = null" @click="($event.target === dialog) && dialog?.close()">
+      <template v-if="activeQr">
       <div class="qr-modal-box">
+        <button class="dialog-close" type="button" :aria-label="t('common.close')" @click="dialog?.close()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         <img class="qr-modal-img" :src="`/api/site-methods/${activeQr.id}/qr`" :alt="`${activeQr.name} ${t('support.qrCode')}`" />
         <p class="qr-modal-title">{{ activeQr.name }}</p>
       </div>
-    </div>
+      </template>
+    </dialog>
     <div class="support-note" :class="{ show }" role="status" aria-live="polite">{{ note }}</div>
-  </main>
+  </section>
 </template>

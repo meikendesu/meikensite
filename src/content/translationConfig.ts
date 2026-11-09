@@ -1,4 +1,4 @@
-export const TRANSLATION_VERSION = '2026-08-17-qwen3-opencc-twp-v1'
+export const TRANSLATION_VERSION = '2026-11-09-unified-home-v2'
 
 export function versionedTranslationUrl(path: string) {
   const separator = path.includes('?') ? '&' : '?'

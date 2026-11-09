@@ -56,9 +56,9 @@ function formatFileSize(size: number | null) {
         <p class="hero-copy">{{ t('projects.publishedAt') }} {{ project.publishedAt }} · {{ t('projects.updatedAt') }} {{ project.updatedAt }}</p>
       </section>
       <img
-        v-if="project.coverUrl"
+        v-if="project.coverUrl || project.slug === 'wawawa'"
         class="project-detail-cover"
-        :src="project.coverUrl"
+        :src="project.coverUrl || '/images/wawawa-watch.webp'"
         :alt="`${project.name} · ${t('projects.coverImage')}`"
         decoding="async"
       />
