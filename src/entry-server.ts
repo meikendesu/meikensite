@@ -59,7 +59,7 @@ async function loadInitialProjects(url: string, env?: Env): Promise<{ projects: 
   const empty = { projects: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1 } }
   if (!env?.DB) return empty
   const pathname = new URL(url, 'https://example.invalid').pathname
-  if (pathname === '/projects' || pathname === '/') {
+  if (pathname === '/projects-list' || pathname === '/projects' || pathname === '/') {
     const [result, countRow] = await Promise.all([
       env.DB.prepare(
       `SELECT id, slug, tag, title AS name, description AS desc, '' AS markdown,

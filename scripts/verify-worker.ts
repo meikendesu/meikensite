@@ -402,9 +402,11 @@ assert.ok(homeBody.includes(aboutRow.intro_paragraph_1), '主页应预渲染关�
 assert.ok(homeBody.includes('mailto:hello@example.com'), '主页应预渲染联系方式')
 assert.ok(homeBody.includes(donationMethodRow.description), '主页应预渲染捐助方式')
 
-const projectsPage = await request('/projects')
-assert.equal(projectsPage.status, 200, '/projects 状态码')
+const projectsPage = await request('/projects-list')
+assert.equal(projectsPage.status, 200, '/projects-list 状态码')
 const projectsPageBody = await projectsPage.text()
+assert.doesNotMatch(projectsPageBody, /class="site-sidebar"/, '独立项目列表不应渲染侧栏或手机导航')
+assert.match(projectsPageBody, /返回主页/, '独立项目列表应提供返回主页入口')
 assert.doesNotMatch(projectsPageBody, /\/api\/projects\/wawawa\/download/, '项目列表不直接显示下载入口')
 assert.match(projectsPageBody, /class="project-card-cover"/, '有封面时项目列表应显示 Banner 缩略图')
 assert.match(projectsPageBody, /\/api\/projects\/wawawa\/cover/, '项目列表封面应使用同源 R2 图片接口')

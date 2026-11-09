@@ -8,7 +8,8 @@ import { beginPageLoading } from './data/pageLoading'
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: HomeView, meta: { titleKey: 'docTitle.home', localeSwitcher: true } },
   { path: '/about', redirect: { path: '/', hash: '#about' } },
-  { path: '/projects', name: 'projects', component: () => import('./views/ProjectsView.vue'), meta: { titleKey: 'docTitle.projects', tabbar: true, localeSwitcher: true } },
+  { path: '/projects', redirect: '/projects-list' },
+  { path: '/projects-list', name: 'projects-list', component: () => import('./views/ProjectsView.vue'), meta: { titleKey: 'docTitle.projects', hideNavigation: true } },
   { path: '/projects/:id', name: 'project-detail', component: () => import('./views/ProjectDetailView.vue'), meta: { titleKey: 'docTitle.detail' } },
   { path: '/contact', redirect: { path: '/', hash: '#contact' } },
   { path: '/support', redirect: { path: '/', hash: '#support' } },

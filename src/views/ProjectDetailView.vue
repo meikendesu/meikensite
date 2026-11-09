@@ -46,10 +46,16 @@ function formatFileSize(size: number | null) {
 
 <template>
   <main id="main" tabindex="-1" class="shell page-shell editorial-shell detail-shell">
-    <router-link class="detail-back-float" to="/projects" :aria-label="t('common.backProjects')">
-      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-      <span>{{ t('common.backProjects') }}</span>
-    </router-link>
+    <div class="page-actions">
+      <router-link class="detail-back-float" to="/">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        <span>{{ t('common.returnHome') }}</span>
+      </router-link>
+      <router-link class="work-btn" to="/projects-list">
+        <i class="fa-solid fa-list" aria-hidden="true"></i>
+        <span>{{ t('common.projectList') }}</span>
+      </router-link>
+    </div>
     <template v-if="project && hasContent">
       <section class="page-hero compact">
         <h1>{{ project.name }}</h1>

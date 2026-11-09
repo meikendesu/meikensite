@@ -21,6 +21,8 @@ export const UI_MESSAGES_ZH_CN: TranslationObject = {
   common: {
     backHome: '首页',
     backProjects: '项目',
+    returnHome: '返回主页',
+    projectList: '项目列表',
     viewProject: '查看项目',
     downloadProject: '下载项目文件',
     copy: '复制',

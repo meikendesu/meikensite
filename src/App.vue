@@ -8,6 +8,7 @@ import { finishInitialPageLoading, pageLoading } from './data/pageLoading'
 
 const route = useRoute()
 const isAdmin = computed(() => route.path.startsWith('/admin'))
+const hideNavigation = computed(() => route.meta.hideNavigation === true)
 watch(locale, () => {
   if (typeof route.meta.titleKey === 'string') document.title = t(route.meta.titleKey)
 })
@@ -16,8 +17,8 @@ onMounted(() => window.requestAnimationFrame(finishInitialPageLoading))
 
 <template>
   <a class="skip-link" href="#main">{{ t('a11y.skip') }}</a>
-  <div class="site-layout" :class="{ 'admin-layout': isAdmin }">
-    <SiteNavigation :admin="isAdmin" />
+  <div class="site-layout" :class="{ 'admin-layout': isAdmin, 'standalone-layout': hideNavigation }">
+    <SiteNavigation v-if="!hideNavigation" :admin="isAdmin" />
     <div class="site-workspace">
       <header class="site-topbar">
         <router-link to="/" class="site-wordmark" aria-label="MEIKEN">MEIKEN</router-link>

@@ -46,7 +46,7 @@ try {
   for (const text of ['后台维护的介绍正文。', '后台项目', 'mailto:hello@example.com', 'https://example.com/support', '查看更多项目']) {
     assert.ok(home.html.includes(text), `首页 SSR 应提供真实内容及入口：${text}`)
   }
-  assert.ok(home.html.includes('href="/projects"'), '查看更多项目应进入独立列表')
+  assert.ok(home.html.includes('href="/projects-list"'), '查看更多项目应进入新的独立列表路径')
   assert.ok(home.html.includes('/projects/real-project'), '精选项目应链接独立详情')
   assert.equal(home.projects.length, 1)
   assert.equal(home.siteMethods.length, 2)
@@ -60,11 +60,26 @@ try {
     const legacy = await render(path, undefined, env)
     assert.ok(legacy.html.includes('后台维护的介绍正文。'), '旧链接也应预加载整页内容')
   }
-  for (const path of ['/projects', '/projects/real-project']) {
+  for (const path of ['/projects-list', '/projects/real-project']) {
     const { router } = createApp({ url: path })
     await router.push(path)
     assert.equal(router.currentRoute.value.path, path, '项目列表和详情应独立保留')
   }
+  const { router: legacyProjectsRouter } = createApp({ url: '/projects' })
+  await legacyProjectsRouter.push('/projects')
+  assert.equal(legacyProjectsRouter.currentRoute.value.path, '/projects-list', '旧项目列表链接应转到新路径')
+  const list = await render('/projects-list', undefined, env)
+  assert.equal(list.projects.length, 1, '新列表路径应继续预加载项目数据')
+  assert.ok(list.html.includes('后台项目'), '新列表路径应正常渲染项目')
+  assert.ok(!list.html.includes('class="site-sidebar"'), '独立列表不应渲染桌面或手机导航')
+  function hrefForLabel(html: string, label: string) {
+    const link = [...html.matchAll(/<a\b([^>]*)>(.*?)<\/a>/gs)].find(match => match[2].replace(/<[^>]*>/g, '').trim() === label)
+    return link?.[1].match(/href="([^"]*)"/)?.[1]
+  }
+  assert.equal(hrefForLabel(list.html, '返回主页'), '/', '列表页返回按钮应回到主页')
+  const detail = await render('/projects/real-project', undefined, env)
+  assert.equal(hrefForLabel(detail.html, '返回主页'), '/', '详情页返回按钮应回到主页')
+  assert.equal(hrefForLabel(detail.html, '项目列表'), '/projects-list', '详情页应提供新的项目列表入口')
   const { router: anchorRouter } = createApp({ url: '/' })
   await anchorRouter.push('/')
   const current = anchorRouter.currentRoute.value

@@ -57,7 +57,7 @@ watch(locale, loadProjects)
       </div>
       <p v-if="error" class="form-message error" role="alert">{{ error }} <button class="text-button" type="button" @click="loadProjects">{{ t('common.retry') }}</button></p>
       <p v-else-if="!featured.length" class="empty-message">{{ t('home.noProjects') }}</p>
-      <router-link class="primary-button more-projects" to="/projects">{{ t('home.moreProjects') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></router-link>
+      <router-link class="primary-button more-projects" to="/projects-list">{{ t('home.moreProjects') }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></router-link>
     </section>
     <ContactView />
     <SupportView />

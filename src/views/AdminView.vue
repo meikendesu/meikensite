@@ -230,7 +230,7 @@ onMounted(async () => {
     <header v-if="status !== 'hidden' && status !== 'loading'" class="admin-header">
       <div><h1>站点内容管理</h1></div>
       <div class="admin-header-actions">
-        <router-link class="work-btn" to="/projects">查看项目页</router-link>
+        <router-link class="work-btn" to="/projects-list">查看项目页</router-link>
         <button v-if="status === 'ready'" class="work-btn" type="button" @click="logout">退出登录</button>
       </div>
     </header>

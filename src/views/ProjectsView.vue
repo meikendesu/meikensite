@@ -63,6 +63,12 @@ watch(locale, async () => {
 
 <template>
   <main id="main" tabindex="-1" class="shell page-shell editorial-shell">
+    <div class="page-actions">
+      <router-link class="detail-back-float" to="/">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        <span>{{ t('common.returnHome') }}</span>
+      </router-link>
+    </div>
     <section class="page-hero compact">
       <h1>{{ t('projects.title1') }}<br />{{ t('projects.title2') }}</h1>
     </section>

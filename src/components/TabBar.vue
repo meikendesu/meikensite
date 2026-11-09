@@ -11,7 +11,7 @@ import { t } from '../i18n'
     <router-link to="/about" exact-active-class="active">
       <i class="fa-solid fa-circle-info"></i>{{ t('nav.about') }}
     </router-link>
-    <router-link to="/projects" exact-active-class="active">
+    <router-link to="/projects-list" exact-active-class="active">
       <i class="fa-solid fa-code"></i>{{ t('nav.projects') }}
     </router-link>
     <router-link to="/contact" exact-active-class="active">
