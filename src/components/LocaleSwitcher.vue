@@ -52,24 +52,26 @@ async function choose(code: Locale) {
     >
       <i class="fa-solid fa-globe" aria-hidden="true"></i><span>{{ current.label }}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
     </button>
-    <div
-      v-if="open"
-      class="locale-switcher-menu"
-      role="menu"
-      @keydown.esc="open = false"
-    >
-      <button
-        v-for="o in options"
-        :key="o.code"
-        type="button"
-        role="menuitem"
-        :disabled="switching"
-        :class="{ active: locale === o.code }"
-        @click="choose(o.code)"
+    <Transition name="dropdown-pop">
+      <div
+        v-if="open"
+        class="locale-switcher-menu"
+        role="menu"
+        @keydown.esc="open = false"
       >
-        {{ o.label }}
-      </button>
-    </div>
+        <button
+          v-for="o in options"
+          :key="o.code"
+          type="button"
+          role="menuitem"
+          :disabled="switching"
+          :class="{ active: locale === o.code }"
+          @click="choose(o.code)"
+        >
+          {{ o.label }}
+        </button>
+      </div>
+    </Transition>
     <p v-if="error" class="locale-switcher-error" role="alert">{{ error }}</p>
   </div>
 </template>

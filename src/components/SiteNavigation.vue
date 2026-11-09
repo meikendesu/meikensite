@@ -1,11 +1,21 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { t } from '../i18n'
+import { locale, t } from '../i18n'
 
 const props = defineProps<{ admin: boolean }>()
 const route = useRoute()
 const activeSection = ref('home')
+const links = ref<HTMLElement | null>(null)
+const indicator = ref<Record<string, string>>({ opacity: '0' })
+let resizeObserver: ResizeObserver | undefined
+function updateIndicator() {
+  const active = links.value?.querySelector<HTMLElement>('a.active')
+  indicator.value = active ? {
+    opacity: '1', width: `${active.offsetWidth}px`, height: `${active.offsetHeight}px`,
+    transform: `translate3d(${active.offsetLeft}px,${active.offsetTop}px,0)`
+  } : { opacity: '0' }
+}
 const publicItems = [
   { id: 'home', key: 'nav.home', icon: 'fa-house' },
   { id: 'about', key: 'home.about', icon: 'fa-user' },
@@ -48,8 +58,21 @@ watch(() => route.fullPath, () => {
   if (route.hash) activeSection.value = route.hash.slice(1)
   else activeSection.value = 'home'
 })
-onMounted(() => { window.addEventListener('scroll', onScroll, { passive: true }); updateSection() })
-onBeforeUnmount(() => { window.removeEventListener('scroll', onScroll); window.cancelAnimationFrame(frame) })
+watch([selected, () => route.fullPath, locale], () => nextTick(updateIndicator), { flush: 'post' })
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  updateSection()
+  updateIndicator()
+  if (links.value && 'ResizeObserver' in window) {
+    resizeObserver = new ResizeObserver(updateIndicator)
+    resizeObserver.observe(links.value)
+  }
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', onScroll)
+  window.cancelAnimationFrame(frame)
+  resizeObserver?.disconnect()
+})
 </script>
 
 <template>
@@ -61,7 +84,8 @@ onBeforeUnmount(() => { window.removeEventListener('scroll', onScroll); window.c
       </svg>
       <span>MEIKEN<small v-if="admin">ADMIN</small></span>
     </router-link>
-    <nav class="sidebar-links" :aria-label="admin ? '管理导航' : t('a11y.navigation')">
+    <nav ref="links" class="sidebar-links" :class="{ 'has-indicator': indicator.opacity === '1' }" :aria-label="admin ? '管理导航' : t('a11y.navigation')">
+      <span class="nav-indicator" :style="indicator" aria-hidden="true"></span>
       <template v-if="admin">
         <router-link v-for="item in adminItems" :key="item.id" :to="item.to" :class="{ active: isAdminSelected(item) }" :aria-current="isAdminSelected(item) ? 'page' : undefined">
           <i class="fa-solid" :class="item.icon" aria-hidden="true"></i><span>{{ item.label }}</span>

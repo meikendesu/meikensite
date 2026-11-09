@@ -50,6 +50,7 @@ npm install
 npm run dev                 # 仅启动 Vite 客户端，不包含 Worker API
 npm run typecheck           # 生成 Worker 绑定类型并检查全部 TypeScript/Vue 文件
 npm run verify:ui           # 验证合并主页 SSR、真实内容注入、旧链接定位和独立项目路由
+npm run verify:motion       # 验证动效弹簧、减少动态效果和资源清理
 npm run fonts:update        # 从官方在线源更新两个本地 Noto 可变 WOFF2 字体
 npm run build               # 更新免费图标目录并产出 dist/client 与 dist/server
 npm run verify:worker       # 构建并执行 SSR、错误页和静态资源回归检查

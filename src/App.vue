@@ -1,23 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SiteNavigation from './components/SiteNavigation.vue'
 import LocaleSwitcher from './components/LocaleSwitcher.vue'
 import { locale, t } from './i18n'
 import { finishInitialPageLoading, pageLoading } from './data/pageLoading'
+import { enterPage, installSiteMotion } from './motion/siteMotion'
 
 const route = useRoute()
 const isAdmin = computed(() => route.path.startsWith('/admin'))
 const hideNavigation = computed(() => route.meta.hideNavigation === true)
+const layout = ref<HTMLElement | null>(null)
+let stopMotion: (() => void) | undefined
 watch(locale, () => {
   if (typeof route.meta.titleKey === 'string') document.title = t(route.meta.titleKey)
 })
-onMounted(() => window.requestAnimationFrame(finishInitialPageLoading))
+onMounted(() => {
+  if (layout.value) stopMotion = installSiteMotion(layout.value)
+  window.requestAnimationFrame(finishInitialPageLoading)
+})
+onBeforeUnmount(() => stopMotion?.())
 </script>
 
 <template>
   <a class="skip-link" href="#main">{{ t('a11y.skip') }}</a>
-  <div class="site-layout" :class="{ 'admin-layout': isAdmin, 'standalone-layout': hideNavigation }">
+  <div ref="layout" class="site-layout" :class="{ 'admin-layout': isAdmin, 'standalone-layout': hideNavigation }">
     <SiteNavigation v-if="!hideNavigation" :admin="isAdmin" />
     <div class="site-workspace">
       <header class="site-topbar">
@@ -26,7 +33,9 @@ onMounted(() => window.requestAnimationFrame(finishInitialPageLoading))
         <LocaleSwitcher v-else />
       </header>
       <router-view v-slot="{ Component }">
-        <component :is="Component" :key="route.path" />
+        <Transition :css="false" @enter="enterPage">
+          <component :is="Component" :key="route.path" />
+        </Transition>
       </router-view>
     </div>
   </div>

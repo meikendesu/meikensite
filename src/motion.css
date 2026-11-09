@@ -1,0 +1,65 @@
+/* 所有位移动画只影响合成层，内容尺寸和滚动锚点保持稳定。 */
+[data-motion-pending] { opacity: 0; }
+.sidebar-links { position: relative; isolation: isolate; }
+.sidebar-links a { position: relative; z-index: 1; }
+.nav-indicator {
+  position: absolute; top: 0; left: 0; pointer-events: none;
+  border-radius: 13px; background: linear-gradient(120deg, #cce3ff, #e2efff);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 3px 12px rgba(0,122,255,.06);
+  transition: transform .42s cubic-bezier(.22,1,.36,1), width .32s ease, height .32s ease, opacity .2s ease;
+}
+.sidebar-links.has-indicator a.active { background: transparent; }
+.sidebar-links a i { transition: transform .3s cubic-bezier(.22,1,.36,1), color .2s; }
+.sidebar-links a.active i { transform: scale(1.12); }
+.sidebar-brand .brand-mark { transition: transform .45s cubic-bezier(.22,1,.36,1); }
+.hero-art img { transform-origin: 50% 50%; }
+
+:where(button, .primary-button, .secondary-button, .work-btn, .detail-back-float, .error-home) {
+  transition: transform .22s cubic-bezier(.22,1,.36,1), background .2s, box-shadow .25s, color .2s;
+  touch-action: manipulation;
+}
+:where(button, .primary-button, .secondary-button, .work-btn, .detail-back-float, .error-home):active {
+  transform: scale(.96); transition-duration: .08s;
+}
+:where(.hero-actions, .text-action, .more-projects, .page-actions, .admin-header-actions) i {
+  transition: transform .28s cubic-bezier(.22,1,.36,1);
+}
+.featured-project, .work-card, .payment-card, .contact-row {
+  transition: transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s, background .24s;
+}
+.featured-project > img, .project-card-cover { transition: transform .65s cubic-bezier(.22,1,.36,1); }
+.contact-row .row-icon, .payment-icon { transition: transform .32s cubic-bezier(.22,1,.36,1); }
+.locale-switcher-trigger .fa-chevron-down { transition: transform .25s; }
+.locale-switcher.open .locale-switcher-trigger .fa-chevron-down { transform: rotate(180deg); }
+.dropdown-pop-enter-active, .dropdown-pop-leave-active { transition: opacity .2s ease, transform .25s cubic-bezier(.22,1,.36,1); transform-origin: top right; }
+.dropdown-pop-enter-from, .dropdown-pop-leave-to { opacity: 0; transform: translateY(-7px) scale(.97); }
+.support-note { opacity: 0; transition: opacity .25s, transform .3s cubic-bezier(.22,1,.36,1), visibility .25s; transform: translate(-50%, 12px); }
+.support-note.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* 原生 dialog 保留焦点管理和 Esc 关闭，弹出时始终围绕屏幕正中缩放。 */
+.qr-modal[open] { animation: modal-arrive .32s cubic-bezier(.22,1,.36,1); }
+.qr-modal[open]::backdrop { animation: backdrop-arrive .25s ease-out; }
+@keyframes modal-arrive { from { opacity: 0; transform: translateY(10px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes backdrop-arrive { from { opacity: 0; } to { opacity: 1; } }
+
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
+  .sidebar-links a:hover i { transform: translateY(-2px) scale(1.1); }
+  :where(.primary-button, .secondary-button, .work-btn, .admin-primary, .error-home):hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,100,220,.16); }
+  :where(.primary-button, .secondary-button, .work-btn, .admin-primary, .error-home):active { transform: scale(.96); }
+  :where(.hero-actions a, .more-projects a, .text-action):hover i { transform: translateX(4px); }
+  .featured-project:hover, .work-card:hover { transform: translateY(-5px); box-shadow: 0 16px 38px rgba(40,70,110,.12); }
+  .featured-project:hover > img, .work-card:hover .project-card-cover { transform: scale(1.025); }
+  .contact-row:hover { transform: translateX(4px); }
+  .contact-row:hover .row-icon { transform: rotate(-6deg) scale(1.08); }
+  .payment-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(40,70,110,.09); }
+  .payment-card:hover .payment-icon { transform: translateY(-2px) rotate(-5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-motion-pending] { opacity: 1; }
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .hero-art img, .featured-project:hover, .work-card:hover, .payment-card:hover, .contact-row:hover,
+  .featured-project:hover > img, .work-card:hover .project-card-cover,
+  .sidebar-brand:hover .brand-mark, .sidebar-links a i, .contact-row .row-icon, .payment-icon,
+  :where(button, .primary-button, .secondary-button, .work-btn, .admin-primary, .error-home):is(:hover,:active) { transform: none !important; }
+}
