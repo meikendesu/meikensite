@@ -67,7 +67,6 @@ onBeforeUnmount(() => {
       <h2 id="support-title">{{ t('home.support') }}</h2>
       <h3>{{ t('support.title') }}</h3>
       <p class="hero-copy">{{ t('support.heroCopy') }}</p>
-      <i class="fa-solid fa-mug-hot support-coffee" aria-hidden="true"></i>
     </div>
     <div class="payment-list" :aria-label="t('support.paymentMethods')">
       <article v-for="method in methods" :key="method.id" class="payment-card" :class="method.methodKey">
